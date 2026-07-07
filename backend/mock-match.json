@@ -1,0 +1,57 @@
+{
+  "match_id": "demo-match-001",
+  "home_team": "Argentina",
+  "away_team": "France",
+  "events": [
+    {
+      "type": "kickoff",
+      "minute": 1
+    },
+    {
+      "type": "var_check",
+      "minute": 15,
+      "description": "Possible Penalty for Argentina"
+    },
+    {
+      "type": "var_result",
+      "minute": 16,
+      "result": "penalty_given"
+    },
+    {
+      "type": "goal",
+      "minute": 23,
+      "scorer": "Lionel Messi",
+      "score": { "home": 1, "away": 0 },
+      "ruined_users": ["@tade", "@kemi"]
+    },
+    {
+      "type": "half_time",
+      "minute": 45
+    },
+    {
+      "type": "goal",
+      "minute": 80,
+      "scorer": "Kylian Mbappe",
+      "score": { "home": 1, "away": 1 },
+      "ruined_users": ["@goody"]
+    },
+    {
+      "type": "goal",
+      "minute": 108,
+      "scorer": "Lionel Messi",
+      "score": { "home": 2, "away": 1 },
+      "ruined_users": []
+    },
+    {
+      "type": "goal",
+      "minute": 118,
+      "scorer": "Kylian Mbappe",
+      "score": { "home": 2, "away": 2 },
+      "ruined_users": []
+    },
+    {
+      "type": "match_end",
+      "minute": 120
+    }
+  ]
+}
