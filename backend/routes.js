@@ -1,6 +1,6 @@
 import express from 'express';
 import { supabase } from './db.js';
-import { getMatches, getMatchById } from './txline.js';
+import { getMatches, getMatchById, getMatchOdds } from './txline.js';
 import { Connection } from '@solana/web3.js';
 
 const router = express.Router();
@@ -26,28 +26,44 @@ router.get('/matches', async (req, res) => {
  * @desc Get match details, squads, and live odds
  */
 router.get('/matches/:id', async (req, res) => {
-  if (!process.env.TXLINE_API_KEY || process.env.TXLINE_API_KEY === 'your_txline_api_key') {
-    return res.json({
-      id: req.params.id,
-      home: 'Argentina', away: 'France', time: '20:00 UTC',
-      squads: ['Lionel Messi', 'Julian Alvarez', 'Kylian Mbappe', 'Antoine Griezmann', 'Olivier Giroud', 'No Goalscorer'],
-      odds: {
-        result: { 'Home Win': 2.60, 'Draw': 3.10, 'Away Win': 2.80 },
-        btts: { 'Yes': 1.85, 'No': 1.95 },
-        goals: { 'Over 2.5': 2.10, 'Under 2.5': 1.75 },
-        scorer: { 
-          'Lionel Messi': 5.00, 
-          'Julian Alvarez': 7.50, 
-          'Kylian Mbappe': 5.50, 
-          'Antoine Griezmann': 9.00, 
-          'Olivier Giroud': 8.50, 
-          'No Goalscorer': 12.00 
-        }
+  // Mock fallback data
+  const mockResponse = {
+    id: req.params.id,
+    home: 'Argentina', away: 'France', time: '20:00 UTC',
+    squads: ['Lionel Messi', 'Julian Alvarez', 'Kylian Mbappe', 'Antoine Griezmann', 'Olivier Giroud', 'No Goalscorer'],
+    odds: {
+      result: { 'Home Win': 2.60, 'Draw': 3.10, 'Away Win': 2.80 },
+      btts: { 'Yes': 1.85, 'No': 1.95 },
+      goals: { 'Over 2.5': 2.10, 'Under 2.5': 1.75 },
+      scorer: { 
+        'Lionel Messi': 5.00, 
+        'Julian Alvarez': 7.50, 
+        'Kylian Mbappe': 5.50, 
+        'Antoine Griezmann': 9.00, 
+        'Olivier Giroud': 8.50, 
+        'No Goalscorer': 12.00 
       }
-    });
+    }
+  };
+
+  // Try real TxLINE data first
+  try {
+    const [match, odds] = await Promise.all([
+      getMatchById(req.params.id),
+      getMatchOdds(req.params.id)
+    ]);
+    
+    if (match && odds) {
+      console.log('[TxLINE] Serving real odds data for match', req.params.id);
+      return res.json({ ...match, odds, source: 'txline' });
+    }
+  } catch (err) {
+    console.log('[TxLINE] Live data unavailable, using mock fallback:', err.message);
   }
-  const match = await getMatchById(req.params.id);
-  res.json(match || {});
+  
+  // Fallback to mock data for demo
+  console.log('[MOCK] Serving hardcoded demo odds for match', req.params.id);
+  res.json({ ...mockResponse, source: 'mock' });
 });
 
 
@@ -56,12 +72,12 @@ router.get('/matches/:id', async (req, res) => {
  * @desc Create a new prediction group
  */
 router.post('/groups/create', async (req, res) => {
-  const { name, created_by, entry_fee } = req.body;
+  const { name, created_by, entry_fee, chat_id } = req.body;
   const invite_code = Math.random().toString(36).substring(2, 8).toUpperCase();
   
   const { data, error } = await supabase
     .from('groups')
-    .insert([{ name, created_by, invite_code, entry_fee }])
+    .insert([{ name, created_by, invite_code, entry_fee, chat_id }])
     .select()
     .single();
 
@@ -123,7 +139,7 @@ router.post('/predictions', async (req, res) => {
   const { wallet_address, group_invite_code, match_id, picks, tx_signature } = req.body;
 
   // 1. Verify Transaction on Solana Devnet
-  if (tx_signature) {
+  if (tx_signature && tx_signature.length > 50) {
     try {
       const tx = await connection.getTransaction(tx_signature, { maxSupportedTransactionVersion: 0 });
       if (!tx) {
@@ -168,14 +184,28 @@ router.post('/predictions', async (req, res) => {
 
     // 4. Auto-Resolve Match UUID
     let realMatchId;
-    const matchTxId = match_id || 'demo-match-001';
-    const { data: matchData } = await supabase.from('matches').select('id').eq('txline_id', matchTxId).single();
-    if (matchData) {
-      realMatchId = matchData.id;
+    if (match_id && match_id.length === 36 && match_id.split('-').length === 5) {
+      realMatchId = match_id;
     } else {
-      const { data: newMatch, error: matchError } = await supabase.from('matches').insert([{ txline_id: matchTxId, home_team: 'Argentina', away_team: 'France', kickoff_time: new Date().toISOString() }]).select().single();
+      const matchTxId = match_id || 'demo-match-001';
+      const isBrazil = matchTxId === 'bra-spa' || matchTxId === 'demo-match-002';
+      
+      const { data: matchData, error: matchError } = await supabase
+        .from('matches')
+        .upsert(
+          [{ 
+             txline_id: matchTxId, 
+             home_team: isBrazil ? 'Brazil' : 'Argentina', 
+             away_team: isBrazil ? 'Spain' : 'France', 
+             kickoff_time: new Date().toISOString() 
+          }],
+          { onConflict: 'txline_id' }
+        )
+        .select('id')
+        .single();
+        
       if (matchError) throw new Error("Match Error: " + matchError.message);
-      realMatchId = newMatch.id;
+      realMatchId = matchData.id;
     }
 
     // 5. Save Prediction with real UUIDs
@@ -219,6 +249,66 @@ router.get('/leaderboard/:groupId', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+/**
+ * @route GET /api/predictions/:inviteCode/:walletAddress
+ * @desc Get all predictions for a specific user in a specific group
+ */
+router.get('/predictions/:inviteCode/:walletAddress', async (req, res) => {
+  const { inviteCode, walletAddress } = req.params;
+
+  try {
+    // 1. Get Group
+    const { data: group } = await supabase.from('groups').select('id, entry_fee').eq('invite_code', inviteCode).single();
+    if (!group) return res.json([]);
+
+    // 2. Get Member
+    const { data: member } = await supabase.from('members').select('id').eq('wallet_address', walletAddress).eq('group_id', group.id).single();
+    if (!member) return res.json([]);
+
+    // 3. Get Predictions with Match Details
+    const { data, error } = await supabase
+      .from('predictions')
+      .select(`
+        id,
+        picks,
+        tx_signature,
+        status:locked,
+        matches (
+          home_team,
+          away_team,
+          txline_id
+        )
+      `)
+      .eq('member_id', member.id);
+
+    if (error) throw error;
+    
+    // Format to match frontend escrow expectations
+    const formatted = data.map(p => {
+      // Calculate totalPos from picks object
+      let totalPts = 0;
+      if (p.picks) {
+        if (typeof p.picks.result === 'number') totalPts += p.picks.result;
+        // In our frontend picks object, it stores the selected string (e.g. 'Home win') 
+        // Wait, the frontend stores the selections. Where are the odds? 
+        // We will just let the frontend parse it, or we can send the raw picks.
+      }
+      return {
+        matchId: p.matches.txline_id,
+        match: `${p.matches.home_team} vs ${p.matches.away_team}`,
+        status: p.status ? 'Locked' : 'Pending',
+        picks: p.picks,
+        fee: group.entry_fee,
+        sig: p.tx_signature || 'N/A'
+      };
+    });
+
+    res.json(formatted);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

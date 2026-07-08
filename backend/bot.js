@@ -1,5 +1,6 @@
 import { Telegraf, Markup } from 'telegraf';
 import axios from 'axios';
+import { supabase } from './db.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -16,7 +17,24 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || 'dummy_token_for_dev'
 const flashBets = {};
 
 // Basic Commands
-bot.command('start', (ctx) => {
+bot.command('start', async (ctx) => {
+  const payload = ctx.payload; // telegraf extracts the startgroup payload
+  if (payload && payload.startsWith('LINK_')) {
+    const inviteCode = payload.split('_')[1];
+    
+    const { data, error } = await supabase
+      .from('groups')
+      .update({ chat_id: ctx.chat.id })
+      .eq('invite_code', inviteCode)
+      .select();
+      
+    if (error || !data || data.length === 0) {
+      return ctx.reply('❌ Failed to link group. Please check if the invite code is valid.');
+    }
+    
+    return ctx.reply(`✅ Successfully linked this Telegram community to Group ${inviteCode} on TxLINE Pulse! You will now receive live match events here.`);
+  }
+
   console.log("[TELEGRAM] Received /start from Chat ID:", ctx.chat.id);
   ctx.reply(`Welcome to TxLINE Pulse! 🏆\n\nLink your wallet and join a group on our web dashboard to start predicting.\n\n(Developer Note: Your Chat ID is ${ctx.chat.id} - Paste this into your .env file as TELEGRAM_CHAT_ID)`);
 });

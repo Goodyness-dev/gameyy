@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TxLINE Pulse — Landing</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --cr:#F5F0E8;--cr-d:#EDE6D6;--cr-dd:#E0D8C3;
+  --gr:#2D7A3A;--gr-l:#3A9A4A;--gr-dk:#1E5528;
+  --gd:#D4A017;--gd-l:#F0C040;
+  --pl:rgba(255,255,255,0.13);
+  --tm:#1C2B1C;--tm2:#5A6B4A;
+}
+body{background:var(--cr);font-family:'Nunito',sans-serif;min-height:100vh;}
+.nav{background:var(--gr-dk);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:3px solid var(--gd);position:relative;overflow:hidden;}
+.nav::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,var(--pl) 0,var(--pl) 1px,transparent 1px,transparent 60px);pointer-events:none;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:var(--cr);display:flex;align-items:center;gap:8px;position:relative;}
+.logo-accent{color:var(--gd);}
+.wbtn{background:var(--cr);color:var(--gr-dk);border:none;border-radius:20px;padding:7px 16px;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.wdot{width:8px;height:8px;background:var(--gr);border-radius:50%;}
+.wrap{padding:2rem;max-width:900px;margin:0 auto;}
+.hero{background:var(--gr-dk);border-radius:18px;padding:4rem 2.5rem 3rem;text-align:center;position:relative;overflow:hidden;margin-bottom:1.75rem;}
+.hero-grid{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,var(--pl) 0,var(--pl) 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,var(--pl) 0,var(--pl) 1px,transparent 1px,transparent 40px);pointer-events:none;}
+.hero-circle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:220px;height:220px;border:2px solid var(--pl);border-radius:50%;pointer-events:none;}
+.badge{display:inline-flex;align-items:center;gap:6px;background:var(--gd);color:#1a2e1a;font-weight:800;font-size:11px;padding:5px 16px;border-radius:20px;letter-spacing:1px;margin-bottom:1.1rem;position:relative;}
+.htitle{font-family:'Bebas Neue',sans-serif;font-size:60px;letter-spacing:3px;color:var(--cr);line-height:1;margin-bottom:.6rem;position:relative;}
+.htitle em{color:var(--gd);font-style:normal;}
+.hsub{color:rgba(245,240,232,.72);font-size:15px;margin-bottom:2.2rem;position:relative;}
+.hbtns{display:flex;gap:1rem;justify-content:center;position:relative;flex-wrap:wrap;}
+.btn-g{background:var(--gd);color:#1a2e1a;border:none;border-radius:30px;padding:14px 32px;font-family:'Nunito',sans-serif;font-weight:900;font-size:15px;cursor:pointer;}
+.btn-s{background:transparent;color:var(--cr);border:2px solid rgba(245,240,232,.4);border-radius:30px;padding:14px 32px;font-family:'Nunito',sans-serif;font-weight:700;font-size:15px;cursor:pointer;}
+.how{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;}
+.hcard{background:#fff;border:2px solid var(--cr-dd);border-radius:16px;padding:1.5rem;display:flex;align-items:flex-start;gap:1rem;}
+.hicon{width:50px;height:50px;min-width:50px;background:var(--gr-dk);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:23px;}
+.hcard h3{font-weight:800;font-size:14px;color:var(--tm);margin-bottom:5px;}
+.hcard p{font-size:13px;color:var(--tm2);line-height:1.55;}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="logo">⚽ TxLINE <span class="logo-accent">Pulse</span></div>
+  <button class="wbtn"><div class="wdot"></div>G4Yu…5seH</button>
+</nav>
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-grid"></div>
+    <div class="hero-circle"></div>
+    <div class="badge">⚽ WORLD CUP 2026 · POWERED BY TxLINE</div>
+    <h1 class="htitle">PREDICT.<br><em>STAKE. WIN.</em></h1>
+    <p class="hsub">Connect your wallet, join a group, pick your markets before kickoff.</p>
+    <div class="hbtns">
+      <button class="btn-g">⚽ Create a group</button>
+      <button class="btn-s">Join a group</button>
+    </div>
+  </div>
+  <div class="how">
+    <div class="hcard">
+      <div class="hicon">🔗</div>
+      <div>
+        <h3>Connect wallet</h3>
+        <p>Link your Solana wallet to step onto the pitch.</p>
+      </div>
+    </div>
+    <div class="hcard">
+      <div class="hicon">🏟️</div>
+      <div>
+        <h3>Join a group</h3>
+        <p>Pay 0.1 SOL to enter your prediction group.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

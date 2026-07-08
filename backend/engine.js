@@ -97,7 +97,7 @@ const executePayouts = async (matchId) => {
 
     if (!lb || lb.length === 0) continue;
 
-    const topScore = parseFloat(lb[0].total_pts);
+    const topScore = parseFloat(lb[0].total_pts) / 100;
     let payoutsToMake = [];
 
     if (topScore <= 0) {
@@ -111,7 +111,7 @@ const executePayouts = async (matchId) => {
       console.log(`[ESCROW] Retaining 20% (${groupData.entry_fee * 0.2 * groupData.members.length} SOL) as protocol profit. 🤑`);
 
     } else {
-      const winners = lb.filter(entry => parseFloat(entry.total_pts) === topScore);
+      const winners = lb.filter(entry => (parseFloat(entry.total_pts) / 100) === topScore);
       const payoutPerWinner = groupData.pool / winners.length;
       console.log(`[ESCROW] Group ${groupId}: Total Pool ${groupData.pool} SOL. Winners: ${winners.length}. Payout: ${payoutPerWinner} SOL each.`);
 
@@ -138,9 +138,22 @@ const executePayouts = async (matchId) => {
 
         const signature = await sendAndConfirmTransaction(connection, transaction, [treasuryKeypair]);
         console.log(`✅ [SUCCESS] Transaction confirmed! Signature: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+        payout.signature = signature;
       } catch (err) {
         console.error(`❌ [ERROR] Failed to send payout to ${payout.wallet}:`, err.message);
       }
+    }
+    
+    if (payoutsToMake.some(p => p.signature)) {
+      const { data: matchObj } = await supabase.from('matches').select('result').eq('id', matchId).single();
+      const resData = matchObj?.result || {};
+      resData.payouts = resData.payouts || {};
+      
+      const sigsForGroup = payoutsToMake.filter(p => p.signature).map(p => p.signature);
+      if (sigsForGroup.length > 0) {
+        resData.payouts[groupId] = sigsForGroup[0]; // just grab the first valid signature for the group to link to
+      }
+      await supabase.from('matches').update({ result: resData }).eq('id', matchId);
     }
   }
 };
@@ -155,13 +168,18 @@ const evaluatePicks = async (matchId, market, correctValue) => {
   if (!predictions) return;
 
   for (const pred of predictions) {
+    if (!Array.isArray(pred.picks)) {
+       console.log(`[ENGINE] Skipping legacy prediction format for id: ${pred.id}`);
+       continue;
+    }
+
     let updated = false;
     let newNetPoints = pred.net_points || 0;
     
     const updatedPicks = pred.picks.map(pick => {
       if (pick.market === market && pick.status === 'pending') {
         updated = true;
-        if (pick.selection === correctValue) {
+        if (String(pick.selection).toLowerCase() === String(correctValue).toLowerCase()) {
           pick.status = 'won';
           pick.points_awarded = pick.odds;
           newNetPoints += pick.odds;
@@ -184,26 +202,42 @@ const evaluatePicks = async (matchId, market, correctValue) => {
 };
 
 const recalculateLeaderboards = async (matchId) => {
-  const { data: predictions } = await supabase
+  // First, find all members who had predictions in this match
+  const { data: affectedPredictions } = await supabase
     .from('predictions')
-    .select('member_id, net_points, members(group_id)')
+    .select('member_id, members(group_id)')
     .eq('match_id', matchId);
 
-  if (!predictions) return;
+  if (!affectedPredictions || affectedPredictions.length === 0) return;
 
-  const memberPoints = {};
-  predictions.forEach(p => {
-    if (!memberPoints[p.member_id]) {
-      memberPoints[p.member_id] = { points: 0, groupId: p.members.group_id };
-    }
-    memberPoints[p.member_id].points += p.net_points;
+  const memberGroups = {};
+  affectedPredictions.forEach(p => {
+    memberGroups[p.member_id] = p.members.group_id;
   });
 
-  for (const [memberId, info] of Object.entries(memberPoints)) {
+  const memberIds = Object.keys(memberGroups);
+
+  // Then, fetch ALL predictions for these members across ALL matches to sum their true total points
+  const { data: allPredictions } = await supabase
+    .from('predictions')
+    .select('member_id, net_points')
+    .in('member_id', memberIds);
+
+  const memberPoints = {};
+  memberIds.forEach(id => memberPoints[id] = 0);
+
+  if (allPredictions) {
+    allPredictions.forEach(p => {
+      memberPoints[p.member_id] += (p.net_points || 0);
+    });
+  }
+
+  // Update the leaderboard with the true total sum
+  for (const memberId of memberIds) {
     await supabase
       .from('leaderboard')
-      .update({ total_pts: info.points })
+      .update({ total_pts: Math.round(memberPoints[memberId] * 100) })
       .eq('member_id', memberId)
-      .eq('group_id', info.groupId);
+      .eq('group_id', memberGroups[memberId]);
   }
 };

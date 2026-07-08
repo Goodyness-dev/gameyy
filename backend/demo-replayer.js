@@ -1,5 +1,6 @@
 import { handleGoalEvent, handleMatchEnd } from './engine.js';
 import { broadcastGoal, broadcastFlashMarket, resolveFlashMarket } from './bot.js';
+import { supabase } from './db.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -7,8 +8,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const MOCK_MATCH_ID = 'demo-match-001';
-const MOCK_CHAT_ID = process.env.TELEGRAM_CHAT_ID || 'dummy_chat_id'; 
+const MOCK_MATCH_ID_1 = 'demo-match-001'; // arg-fra
+const MOCK_MATCH_ID_2 = 'demo-match-002'; // bra-spa
 
 const loadMockData = () => {
   const filePath = path.join(__dirname, 'mock-match.json');
@@ -26,45 +27,77 @@ export const runDemo = async () => {
     return;
   }
   
-  if (!process.env.TELEGRAM_CHAT_ID || process.env.TELEGRAM_CHAT_ID.includes('dummy')) {
-    console.error("❌ ERROR: TELEGRAM_CHAT_ID is missing or invalid in your .env file!");
-    console.error("You must message the bot /start to get your Chat ID, and put it in .env!");
+  console.log('Fetching active Telegram Chat IDs from database...');
+  const { data: groups, error } = await supabase.from('groups').select('chat_id').not('chat_id', 'is', null);
+  
+  if (error || !groups || groups.length === 0) {
+    console.log("⚠️ WARNING: No groups found with a linked Telegram Chat ID in the database.");
+    console.log("Create a group in the UI and link a Chat ID, or add a default TELEGRAM_CHAT_ID to .env if you just want to test globally.");
+  }
+  
+  const chatIds = groups && groups.length > 0 
+    ? [...new Set(groups.map(g => g.chat_id))] 
+    : (process.env.TELEGRAM_CHAT_ID ? [process.env.TELEGRAM_CHAT_ID] : []);
+
+  if (chatIds.length === 0) {
+    console.error("❌ ERROR: No Telegram Chat IDs available to broadcast to. Exiting.");
     return;
   }
 
-  console.log('Simulating live match events every 10 seconds...');
+  console.log(`Found ${chatIds.length} unique Telegram communities to broadcast to.`);
 
-  const matchData = loadMockData();
-  const events = matchData.events;
+  console.log('Resolving real Match UUIDs from database...');
+  const { data: matchData1, error: matchErr1 } = await supabase.from('matches').select('id').eq('txline_id', MOCK_MATCH_ID_1).single();
+  const { data: matchData2, error: matchErr2 } = await supabase.from('matches').select('id').eq('txline_id', MOCK_MATCH_ID_2).single();
+  
+  if (matchErr1 || !matchData1) return console.error(`❌ ERROR: Could not find match ${MOCK_MATCH_ID_1}`);
+  if (matchErr2 || !matchData2) return console.error(`❌ ERROR: Could not find match ${MOCK_MATCH_ID_2}`);
+  
+  const realMatchId1 = matchData1.id;
+  const realMatchId2 = matchData2.id;
 
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i];
-    
-    // Simulate real-time delay (e.g., 10 seconds between events in demo)
-    await delay(10000); 
+  console.log('Simulating live match events every 1 second...');
 
-    console.log(`\n[MINUTE ${event.minute}] TxLINE Event Received: ${event.type.toUpperCase()}`);
+  const matchDataJSON = loadMockData();
+  const events1 = matchDataJSON.events;
+  
+  // Custom events for Brazil vs Spain
+  const events2 = [
+    { type: 'kickoff', minute: 1 },
+    { type: 'goal', minute: 40, scorer: 'vinicius', score: { home: 1, away: 0 }, ruined_users: [] },
+    { type: 'half_time', minute: 45 },
+    { type: 'goal', minute: 90, scorer: 'morata', score: { home: 1, away: 1 }, ruined_users: [] },
+    { type: 'match_end', minute: 90 }
+  ];
 
-    if (event.type === 'goal') {
-      // 1. Process the goal in the game engine (updates DB & Leaderboard)
-      await handleGoalEvent(event, MOCK_MATCH_ID);
+  // Run them concurrently using Promise.all
+  const simulateMatch = async (events, realMatchId, name) => {
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      await delay(1000); 
 
-      // 2. Mock discovering ruined predictions (In a real app, query the DB for picks against this)
-      const mockRuinedUsers = event.ruined_users || [];
+      console.log(`\n[${name} - MINUTE ${event.minute}] Event: ${event.type.toUpperCase()}`);
 
-      // 3. Fire the Telegram Notification & Voice Note
-      await broadcastGoal(MOCK_CHAT_ID, event, mockRuinedUsers);
-    } else if (event.type === 'var_check') {
-      await broadcastFlashMarket(MOCK_CHAT_ID, event, MOCK_MATCH_ID);
-    } else if (event.type === 'var_result') {
-      await resolveFlashMarket(MOCK_CHAT_ID, event, MOCK_MATCH_ID);
-    } else if (event.type === 'match_end') {
-      console.log('--- MATCH FINISHED ---');
-      const finalScore = { home: 2, away: 2 }; // From our mock events
-      await handleMatchEnd(MOCK_MATCH_ID, finalScore);
-      // In a real app, calculate final points and transfer Solana prize pool here
+      if (event.type === 'goal') {
+        await handleGoalEvent(event, realMatchId);
+        for (const chatId of chatIds) await broadcastGoal(chatId, event, event.ruined_users || []);
+      } else if (event.type === 'var_check') {
+        for (const chatId of chatIds) await broadcastFlashMarket(chatId, event, realMatchId);
+      } else if (event.type === 'var_result') {
+        for (const chatId of chatIds) await resolveFlashMarket(chatId, event, realMatchId);
+      } else if (event.type === 'match_end') {
+        console.log(`--- ${name} FINISHED ---`);
+        let finalScore = { home: 2, away: 2 }; // Default for arg-fra
+        if (name === 'BRA-SPA') finalScore = { home: 1, away: 1 };
+        await handleMatchEnd(realMatchId, finalScore);
+      }
     }
-  }
+  };
+
+  await Promise.all([
+    simulateMatch(events1, realMatchId1, 'ARG-FRA'),
+    simulateMatch(events2, realMatchId2, 'BRA-SPA')
+  ]);
 
   console.log('--- DEMO REPLAYER FINISHED ---');
 };

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TxLINE Pulse — Make Picks</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --cr:#F5F0E8;--cr-d:#EDE6D6;--cr-dd:#E0D8C3;
+  --gr:#2D7A3A;--gr-l:#3A9A4A;--gr-dk:#1E5528;
+  --gd:#D4A017;--gd-l:#F0C040;
+  --pl:rgba(255,255,255,0.13);
+  --tm:#1C2B1C;--tm2:#5A6B4A;
+}
+body{background:var(--cr);font-family:'Nunito',sans-serif;min-height:100vh;}
+.nav{background:var(--gr-dk);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:3px solid var(--gd);position:relative;overflow:hidden;}
+.nav::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,var(--pl) 0,var(--pl) 1px,transparent 1px,transparent 60px);pointer-events:none;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:var(--cr);display:flex;align-items:center;gap:8px;position:relative;}
+.logo-accent{color:var(--gd);}
+.wbtn{background:var(--cr);color:var(--gr-dk);border:none;border-radius:20px;padding:7px 16px;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.wdot{width:8px;height:8px;background:var(--gr);border-radius:50%;}
+.wrap{padding:2rem;max-width:960px;margin:0 auto;}
+.match-hero{background:var(--gr-dk);border-radius:16px;padding:1.75rem;text-align:center;position:relative;overflow:hidden;margin-bottom:1.5rem;}
+.mh-grid{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,var(--pl) 0,var(--pl) 1px,transparent 1px,transparent 80px);pointer-events:none;}
+.mh-teams{display:flex;align-items:center;justify-content:center;gap:1.5rem;position:relative;}
+.tblock{text-align:center;}
+.tflag{width:58px;height:58px;border-radius:50%;background:var(--cr-dd);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 6px;border:3px solid var(--gd);}
+.tname{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1px;color:var(--cr);}
+.vs-pill{background:var(--gd);color:#1a2e1a;font-family:'Bebas Neue',sans-serif;font-size:22px;padding:7px 14px;border-radius:10px;}
+.kickoff{color:rgba(245,240,232,.6);font-size:12px;margin-top:.75rem;position:relative;}
+.rule-note{display:inline-flex;align-items:center;gap:6px;background:rgba(245,240,232,.1);border-radius:20px;padding:4px 14px;font-size:11px;color:rgba(245,240,232,.7);margin-top:6px;position:relative;}
+.layout{display:grid;grid-template-columns:1fr 280px;gap:1.5rem;align-items:start;}
+.mkts{display:flex;flex-direction:column;gap:1.25rem;}
+.mkt-block{}
+.mkt-label{font-weight:800;font-size:11px;color:var(--tm2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:.5rem;display:flex;align-items:center;gap:8px;}
+.mkt-label::after{content:'';flex:1;height:1px;background:var(--cr-dd);}
+.opts{display:grid;gap:8px;}
+.opts-3{grid-template-columns:repeat(3,1fr);}
+.opts-2{grid-template-columns:repeat(2,1fr);}
+.opt{background:#fff;border:2px solid var(--cr-dd);border-radius:12px;padding:11px 10px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;}
+.opt:hover{border-color:var(--gr-l);}
+.opt.sel{background:var(--gr-dk);border-color:var(--gr);}
+.opt-name{display:block;font-weight:800;font-size:13px;color:var(--tm);margin-bottom:2px;}
+.opt.sel .opt-name{color:var(--cr);}
+.opt-odds{font-size:11px;color:var(--tm2);}
+.opt.sel .opt-odds{color:var(--gd);}
+.player-sel{width:100%;padding:11px 14px;border:2px solid var(--cr-dd);border-radius:12px;background:#fff;font-family:'Nunito',sans-serif;font-size:13px;color:var(--tm);cursor:pointer;appearance:none;}
+.skip{font-size:12px;color:var(--tm2);margin-top:7px;cursor:pointer;}
+.betslip{background:var(--gr-dk);border-radius:14px;padding:1.4rem;position:relative;overflow:hidden;top:0;}
+.bs-deco1{position:absolute;top:-30px;right:-30px;width:130px;height:130px;border:2px solid var(--pl);border-radius:50%;}
+.bs-deco2{position:absolute;bottom:-20px;left:-20px;width:80px;height:80px;border:2px solid var(--pl);border-radius:50%;}
+.bs-title{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:2px;color:var(--gd);margin-bottom:1rem;position:relative;}
+.bs-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(245,240,232,.1);position:relative;}
+.bs-row:last-of-type{border-bottom:none;}
+.bs-lbl{font-size:12px;color:rgba(245,240,232,.6);}
+.pts-pos{font-weight:900;font-size:16px;color:#69f070;}
+.pts-neg{font-weight:900;font-size:16px;color:#ff6b6b;}
+.pay-btn{width:100%;background:var(--gd);color:#1a2e1a;border:none;border-radius:30px;padding:15px;font-family:'Nunito',sans-serif;font-weight:900;font-size:15px;cursor:pointer;margin-top:1rem;position:relative;display:flex;align-items:center;justify-content:center;gap:8px;}
+.cancel-lnk{text-align:center;margin-top:9px;font-size:12px;color:rgba(245,240,232,.45);cursor:pointer;position:relative;}
+@media(max-width:680px){.layout{grid-template-columns:1fr;}.opts-3{grid-template-columns:repeat(3,1fr);}}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="logo">⚽ TxLINE <span class="logo-accent">Pulse</span></div>
+  <button class="wbtn"><div class="wdot"></div>G4Yu…5seH</button>
+</nav>
+<div class="wrap">
+  <div class="match-hero">
+    <div class="mh-grid"></div>
+    <div class="mh-teams">
+      <div class="tblock">
+        <div class="tflag">🇦🇷</div>
+        <div class="tname">Argentina</div>
+      </div>
+      <div class="vs-pill">VS</div>
+      <div class="tblock">
+        <div class="tflag">🇫🇷</div>
+        <div class="tname">France</div>
+      </div>
+    </div>
+    <div class="kickoff">Kickoff: 20:00 UTC</div>
+    <div style="text-align:center;margin-top:6px;">
+      <span class="rule-note">✅ Correct picks ADD odds &nbsp;·&nbsp; ❌ Wrong picks SUBTRACT odds</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="mkts">
+      <div class="mkt-block">
+        <div class="mkt-label">1. Match result</div>
+        <div class="opts opts-3" data-group="result">
+          <div class="opt sel" onclick="pick(this)">
+            <span class="opt-name">Home win</span>
+            <span class="opt-odds">±2.60</span>
+          </div>
+          <div class="opt" onclick="pick(this)">
+            <span class="opt-name">Draw</span>
+            <span class="opt-odds">±3.10</span>
+          </div>
+          <div class="opt" onclick="pick(this)">
+            <span class="opt-name">Away win</span>
+            <span class="opt-odds">±2.80</span>
+          </div>
+        </div>
+      </div>
+      <div class="mkt-block">
+        <div class="mkt-label">2. Both teams to score</div>
+        <div class="opts opts-2" data-group="btts">
+          <div class="opt" onclick="pick(this)">
+            <span class="opt-name">Yes</span>
+            <span class="opt-odds">±1.85</span>
+          </div>
+          <div class="opt" onclick="pick(this)">
+            <span class="opt-name">No</span>
+            <span class="opt-odds">±1.95</span>
+          </div>
+        </div>
+      </div>
+      <div class="mkt-block">
+        <div class="mkt-label">3. Total goals</div>
+        <div class="opts opts-2" data-group="goals">
+          <div class="opt" onclick="pick(this)">
+            <span class="opt-name">Over 2.5</span>
+            <span class="opt-odds">±2.10</span>
+          </div>
+          <div class="opt" onclick="pick(this)">
+            <span class="opt-name">Under 2.5</span>
+            <span class="opt-odds">±1.75</span>
+          </div>
+        </div>
+      </div>
+      <div class="mkt-block">
+        <div class="mkt-label">4. First goalscorer</div>
+        <select class="player-sel">
+          <option>Select a player…</option>
+          <option>L. Messi</option>
+          <option>K. Mbappé</option>
+          <option>J. Álvarez</option>
+          <option>O. Giroud</option>
+          <option>A. Di María</option>
+          <option>A. Griezmann</option>
+        </select>
+        <div class="skip">Skip this market →</div>
+      </div>
+    </div>
+
+    <div class="betslip">
+      <div class="bs-deco1"></div>
+      <div class="bs-deco2"></div>
+      <div class="bs-title">⚽ Your bet slip</div>
+      <div class="bs-row">
+        <span class="bs-lbl">Potential max points</span>
+        <span class="pts-pos" id="pts-pos">+2.60 pts</span>
+      </div>
+      <div class="bs-row">
+        <span class="bs-lbl">Potential max loss</span>
+        <span class="pts-neg" id="pts-neg">−2.60 pts</span>
+      </div>
+      <button class="pay-btn">🔒 Pay 0.1 SOL and lock parlay</button>
+      <div class="cancel-lnk">Cancel and go back</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function pick(el){
+  const grp = el.closest('[data-group]');
+  grp.querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+  const oddsText = el.querySelector('.opt-odds').textContent.replace('±','');
+  const val = parseFloat(oddsText).toFixed(2);
+  document.getElementById('pts-pos').textContent = '+'+val+' pts';
+  document.getElementById('pts-neg').textContent = '−'+val+' pts';
+}
+</script>
+</body>
+</html>
