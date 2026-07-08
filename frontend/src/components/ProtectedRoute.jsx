@@ -6,6 +6,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 const ProtectedRoute = ({ children }) => {
   const { connected } = useWallet();
   const [hasPhantom, setHasPhantom] = useState(true);
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   useEffect(() => {
     // Check if Phantom is injected in the window object
@@ -30,12 +31,26 @@ const ProtectedRoute = ({ children }) => {
           <div style={{ background: '#fff', border: '2px solid #ff6b6b', padding: '2.5rem', borderRadius: '16px', maxWidth: '500px', margin: '0 auto', boxShadow: '0 8px 24px rgba(255,107,107,0.15)' }}>
             <div style={{ fontSize: '40px', marginBottom: '1rem' }}>👻</div>
             <h3 style={{ color: '#ff6b6b', marginBottom: '1rem', fontSize: '22px' }}>Phantom Wallet Not Detected</h3>
-            <p style={{ marginBottom: '2rem', color: 'var(--tm)', fontSize: '15px', lineHeight: '1.6' }}>
-              We highly recommend using Phantom Wallet for the best experience. It looks like you don't have the browser extension installed.
-            </p>
-            <a href="https://phantom.app/download" target="_blank" rel="noreferrer" className="btn-g" style={{ textDecoration: 'none', display: 'inline-block', width: '100%' }}>
-              Download Phantom Extension
-            </a>
+            
+            {isMobile ? (
+              <>
+                <p style={{ marginBottom: '2rem', color: 'var(--tm)', fontSize: '15px', lineHeight: '1.6' }}>
+                  To access this page on your phone, you need to open it inside the Phantom App browser!
+                </p>
+                <a href={`https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}`} className="btn-g" style={{ textDecoration: 'none', display: 'inline-block', width: '100%', background: '#AB9FF2', color: '#fff' }}>
+                  Open in Phantom App
+                </a>
+              </>
+            ) : (
+              <>
+                <p style={{ marginBottom: '2rem', color: 'var(--tm)', fontSize: '15px', lineHeight: '1.6' }}>
+                  We highly recommend using Phantom Wallet for the best experience. It looks like you don't have the browser extension installed.
+                </p>
+                <a href="https://phantom.app/download" target="_blank" rel="noreferrer" className="btn-g" style={{ textDecoration: 'none', display: 'inline-block', width: '100%' }}>
+                  Download Phantom Extension
+                </a>
+              </>
+            )}
           </div>
         ) : (
           <div style={{ background: '#fff', border: '2px solid var(--cr-dd)', padding: '3rem', borderRadius: '16px', maxWidth: '400px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
