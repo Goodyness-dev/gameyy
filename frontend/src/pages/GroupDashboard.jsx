@@ -16,7 +16,7 @@ const GroupDashboard = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'txline_pulse_bot';
+  const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'SuoerdevBot';
 
   useEffect(() => {
     if (!id) return;

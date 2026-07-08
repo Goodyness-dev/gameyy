@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import * as googleTTS from 'google-tts-api';
 
 dotenv.config();
 
@@ -66,8 +67,18 @@ const generateGoalAudio = async (script) => {
   // For local development/testing without burning credits, return a local mock file
   if (!apiKey || apiKey === 'your_elevenlabs_key') {
     console.log('[TTS MOCK] Playing mock audio for script:', script);
-    // Instead of a local file, we return a public URL of a crowd cheering so Telegram can send it!
-    return { url: 'https://actions.google.com/sounds/v1/crowds/crowd_cheer.ogg' };
+    try {
+      // Use Google TTS to get a free audio URL of the text
+      const url = googleTTS.getAudioUrl(script, {
+        lang: 'en',
+        slow: false,
+        host: 'https://translate.google.com',
+      });
+      return { url };
+    } catch(e) {
+      // Fallback to cheering if text is too long or errors
+      return { url: 'https://actions.google.com/sounds/v1/crowds/crowd_cheer.ogg' };
+    }
   }
 
   try {
