@@ -37,9 +37,12 @@ const ProtectedRoute = ({ children }) => {
                 <p style={{ marginBottom: '2rem', color: 'var(--tm)', fontSize: '15px', lineHeight: '1.6' }}>
                   To access this page on your phone, you need to open it inside the Phantom App browser!
                 </p>
-                <a href={`https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}`} className="btn-g" style={{ textDecoration: 'none', display: 'inline-block', width: '100%', background: '#AB9FF2', color: '#fff' }}>
+                <a href={`https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}`} className="btn-g" style={{ textDecoration: 'none', display: 'inline-block', width: '100%', background: '#AB9FF2', color: '#fff', marginBottom: '1rem' }}>
                   Open in Phantom App
                 </a>
+                <p style={{ fontSize: '13px', color: 'var(--tm2)' }}>
+                  Don't have the app? <a href="https://phantom.app/download" target="_blank" rel="noreferrer" style={{ color: '#AB9FF2', fontWeight: '800' }}>Download here</a>
+                </p>
               </>
             ) : (
               <>
