@@ -95,7 +95,7 @@ const Home = () => {
           <div className="hicon">🏟️</div>
           <div>
             <h3>Join a group</h3>
-            <p>Pay 0.1 SOL to enter your prediction group.</p>
+            <p>Pay the custom entry fee in SOL to enter your prediction group.</p>
           </div>
         </div>
       </div>
