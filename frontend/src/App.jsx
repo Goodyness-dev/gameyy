@@ -11,6 +11,7 @@ import Home from './pages/Home';
 import CreateGroup from './pages/CreateGroup';
 import GroupDashboard from './pages/GroupDashboard';
 import PredictMatch from './pages/PredictMatch';
+import JoinGroup from './pages/JoinGroup';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useWallet } from '@solana/wallet-adapter-react';
 
@@ -39,6 +40,7 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route element={<ProtectedRoute />}>
+                <Route path="/join" element={<JoinGroup />} />
                 <Route path="/create" element={<CreateGroup />} />
                 <Route path="/group/:id" element={<GroupDashboard />} />
                 <Route path="/group/:id/predict" element={<PredictMatch />} />

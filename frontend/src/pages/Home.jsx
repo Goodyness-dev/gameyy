@@ -7,42 +7,6 @@ import Modal from '../components/Modal';
 const Home = () => {
   const navigate = useNavigate();
   const { setVisible } = useWalletModal();
-  const { connected, publicKey } = useWallet();
-  const [showModal, setShowModal] = useState(false);
-  const [groupCode, setGroupCode] = useState('');
-  const [errorModal, setErrorModal] = useState({ isOpen: false, type: 'error', title: '', desc: '' });
-
-  const handleJoinSubmit = async () => {
-    if (!groupCode || !groupCode.trim()) return;
-    
-    if (!connected) {
-      setErrorModal({ isOpen: true, type: 'error', title: 'Wallet Not Connected', desc: 'Please connect your Solana wallet first.' });
-      return;
-    }
-
-    try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const res = await fetch(`${API_URL}/api/groups/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          invite_code: groupCode.trim(),
-          wallet_address: publicKey.toString(),
-          telegram_username: `@${publicKey.toString().substring(0,5)}` // Demo mock
-        })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to join group');
-      }
-
-      setShowModal(false);
-      navigate(`/group/${groupCode.trim()}`);
-    } catch (err) {
-      setErrorModal({ isOpen: true, type: 'error', title: 'Error', desc: err.message });
-    }
-  };
 
   return (
     <div className="wrap">
@@ -57,31 +21,14 @@ const Home = () => {
           <button 
             className="btn-s" 
             style={{display: 'flex', alignItems: 'center', cursor: 'pointer'}} 
-            onClick={() => setShowModal(true)}
+            onClick={() => navigate('/join')}
           >
             Join a group
           </button>
         </div>
       </div>
 
-      <Modal 
-        isOpen={showModal}
-        type="prompt"
-        title="Join a Group"
-        desc="Enter the group code to join."
-        inputValue={groupCode}
-        setInputValue={setGroupCode}
-        onClose={() => { setShowModal(false); setGroupCode(''); }}
-        onSubmit={handleJoinSubmit}
-      />
 
-      <Modal 
-        isOpen={errorModal.isOpen}
-        type={errorModal.type}
-        title={errorModal.title}
-        desc={errorModal.desc}
-        onClose={() => setErrorModal({ ...errorModal, isOpen: false })}
-      />
 
       <div className="how">
         <div className="hcard" onClick={() => setVisible(true)}>
@@ -91,7 +38,7 @@ const Home = () => {
             <p>Link your Solana wallet to step onto the pitch.</p>
           </div>
         </div>
-        <div className="hcard" onClick={() => setShowModal(true)}>
+        <div className="hcard" onClick={() => navigate('/join')}>
           <div className="hicon">🏟️</div>
           <div>
             <h3>Join a group</h3>
