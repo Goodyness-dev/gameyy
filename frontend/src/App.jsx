@@ -11,6 +11,7 @@ import Home from './pages/Home';
 import CreateGroup from './pages/CreateGroup';
 import GroupDashboard from './pages/GroupDashboard';
 import PredictMatch from './pages/PredictMatch';
+import ProtectedRoute from './components/ProtectedRoute';
 import { useWallet } from '@solana/wallet-adapter-react';
 
 const TopNav = () => {
@@ -37,9 +38,11 @@ const App = () => {
             <TopNav />
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route path="/create" element={<CreateGroup />} />
-              <Route path="/group/:id" element={<GroupDashboard />} />
-              <Route path="/group/:id/predict" element={<PredictMatch />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/create" element={<CreateGroup />} />
+                <Route path="/group/:id" element={<GroupDashboard />} />
+                <Route path="/group/:id/predict" element={<PredictMatch />} />
+              </Route>
             </Routes>
           </BrowserRouter>
         </WalletModalProvider>
