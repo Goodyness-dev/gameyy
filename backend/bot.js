@@ -116,7 +116,7 @@ export const broadcastGoal = async (chatId, event, ruinedUsernames) => {
   // Broadcast to web SSE clients unconditionally
   globalEvents.emit('chat_message', {
     text: script,
-    audioUrl: audio?.url || null, // For web, we prefer the URL if available
+    audioUrl: audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
     timestamp: new Date().toISOString()
   });
 
@@ -151,7 +151,7 @@ export const broadcastFlashMarket = async (chatId, event, matchId) => {
   // Broadcast to web SSE clients unconditionally
   globalEvents.emit('chat_message', {
     text: script,
-    audioUrl: audio?.url || null,
+    audioUrl: audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
     timestamp: new Date().toISOString()
   });
 
@@ -237,7 +237,7 @@ export const broadcastWinner = async (chatId, matchName, winners, payout) => {
 
   globalEvents.emit('chat_message', {
     text: script,
-    audioUrl: audio?.url || null,
+    audioUrl: audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
     timestamp: new Date().toISOString()
   });
 
