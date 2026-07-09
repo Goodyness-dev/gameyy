@@ -212,7 +212,11 @@ const GroupDashboard = () => {
                   }}>
                     <div className="e-row" style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed rgba(245,240,232,0.1)' }}>
                       <strong style={{ color: 'var(--gd)', fontSize: '15px' }}>{esc.match}</strong>
-                      <div style={{ fontSize: '11px', color: 'var(--tm2)', marginTop: '4px' }}>Tx: {esc.sig.substring(0, 12)}...</div>
+                      <div style={{ fontSize: '11px', color: 'var(--tm2)', marginTop: '4px' }}>
+                        <a href={`https://solscan.io/tx/${esc.sig}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ color: 'var(--gd)', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          📄 View Payment Receipt (Solscan) ↗
+                        </a>
+                      </div>
                     </div>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
