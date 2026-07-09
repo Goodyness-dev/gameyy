@@ -1,13 +1,28 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const LiveChat = () => {
   const [messages, setMessages] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
-  const audioRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const isMutedRef = useRef(false);
+
+  // Keep ref in sync with state so the SSE callback always has the latest value
+  useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
+
+  const speakText = useCallback((text) => {
+    if (isMutedRef.current) return;
+    if (!window.speechSynthesis) return;
+    // Cancel any currently speaking utterance
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.1;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+  }, []);
 
   useEffect(() => {
-    // Note: In production, the URL should dynamically use the deployed domain
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const eventSource = new EventSource(`${apiUrl}/api/live-chat/stream`);
     
@@ -17,28 +32,15 @@ const LiveChat = () => {
       
       if (data.type === 'chat_message') {
         setMessages(prev => [...prev, data]);
+        // Speak the message text using browser TTS
+        speakText(data.text);
       }
     };
 
     return () => eventSource.close();
-  }, []); // Run once to connect
-
-  // Separate effect for handling audio so we don't reconnect SSE when mute toggles
-  useEffect(() => {
-    if (messages.length > 0) {
-      const latestMsg = messages[messages.length - 1];
-      if (latestMsg.audioUrl && !isMuted) {
-        if (audioRef.current) {
-          audioRef.current.src = latestMsg.audioUrl;
-          audioRef.current.play().catch(e => console.warn("Browser blocked autoplay. User must interact first.", e));
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages]);
+  }, [speakText]);
 
   useEffect(() => {
-    // Auto scroll to bottom
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -64,21 +66,12 @@ const LiveChat = () => {
             <div className="chat-content">
               <span className="chat-time">{new Date(msg.timestamp).toLocaleTimeString()}</span>
               <p>{msg.text}</p>
-              {msg.audioUrl && (
-                <button className="replay-btn" onClick={() => {
-                  if(audioRef.current) {
-                    audioRef.current.src = msg.audioUrl;
-                    audioRef.current.play();
-                  }
-                }}>▶️ Replay Audio</button>
-              )}
+              <button className="replay-btn" onClick={() => speakText(msg.text)}>▶️ Replay Audio</button>
             </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
-      
-      <audio ref={audioRef} style={{ display: 'none' }} />
       
       <style>{`
         .live-chat-panel {
