@@ -1,7 +1,7 @@
 import express from 'express';
 import { supabase } from './db.js';
 import { getMatches, getMatchById, getMatchOdds } from './txline.js';
-import { processMatchEvent } from './engine.js';
+import { handleGoalEvent, handleMatchEnd } from './engine.js';
 import { Connection } from '@solana/web3.js';
 
 const router = express.Router();
@@ -327,7 +327,11 @@ router.post('/webhook/txline', async (req, res) => {
     console.log(`[WEBHOOK] Received live event for match ${liveEventData.match_id}: ${liveEventData.event || 'UPDATE'}`);
     
     // Pass the real-time event directly into our existing engine
-    await processMatchEvent(liveEventData.match_id, liveEventData);
+    if (liveEventData.event === 'GOAL') {
+      await handleGoalEvent(liveEventData.match_id, liveEventData.score);
+    } else if (liveEventData.event === 'MATCH_END') {
+      await handleMatchEnd(liveEventData.match_id);
+    }
     
     res.status(200).send('Webhook Processed Successfully');
   } catch (err) {
