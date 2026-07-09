@@ -24,7 +24,13 @@ const TopNav = () => {
         <Link to="/rules" style={{ color: 'var(--gd)', fontWeight: 'bold', textDecoration: 'none', fontSize: '14px', borderBottom: '1px solid transparent' }} onMouseEnter={e => e.currentTarget.style.borderBottom = '1px solid var(--gd)'} onMouseLeave={e => e.currentTarget.style.borderBottom = '1px solid transparent'}>
           How to Play & Rules
         </Link>
-        <WalletMultiButton />
+        {/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && !window.solana ? (
+          <a href={`https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}`} style={{ background: '#AB9FF2', padding: '10px 20px', borderRadius: '4px', color: '#000', textDecoration: 'none', fontWeight: 'bold', fontSize: '14px' }}>
+            Open in Phantom
+          </a>
+        ) : (
+          <WalletMultiButton />
+        )}
       </div>
     </nav>
   );
