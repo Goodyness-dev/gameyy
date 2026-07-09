@@ -103,8 +103,8 @@ export const runDemo = async () => {
   console.log('--- DEMO REPLAYER FINISHED ---');
 };
 
-// If run directly: node demo-replayer.js
-if (process.argv[1] === __filename) {
+// If run directly: node demo-replayer.js or node demo-replayer
+if (process.argv[1].includes('demo-replayer')) {
   console.log("Triggering demo on the live server (so Web Chat works)...");
   axios.post('http://localhost:3000/api/demo/start')
     .then(() => console.log("✅ Demo triggered! Go look at your Web Dashboard!"))

@@ -9,7 +9,7 @@ const Rules = () => {
         <h1 style={{ color: 'var(--gd)', marginBottom: '24px', fontSize: '28px' }}>📜 How to Play TxLINE Pulse</h1>
         
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: '#fff', fontSize: '20px', marginBottom: '12px' }}>1. Join a Group & Pay the Entry Fee</h2>
+          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>1. Join a Group & Pay the Entry Fee</h2>
           <p style={{ lineHeight: '1.6' }}>
             To participate, you must join a private group via an invite code and pay the Solana entry fee using your Phantom wallet. 
             The entry fee is locked securely in our smart contract escrow for the duration of the match.
@@ -17,7 +17,7 @@ const Rules = () => {
         </section>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: '#fff', fontSize: '20px', marginBottom: '12px' }}>2. Make Your Predictions</h2>
+          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>2. Make Your Predictions</h2>
           <p style={{ lineHeight: '1.6' }}>
             Before a match begins, you can predict the outcomes of various "Flash Markets" (e.g., Who will score next? Will there be a red card?).
             Each prediction has associated odds. 
@@ -30,7 +30,7 @@ const Rules = () => {
         </section>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: '#fff', fontSize: '20px', marginBottom: '12px' }}>3. The Live Leaderboard</h2>
+          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>3. The Live Leaderboard</h2>
           <p style={{ lineHeight: '1.6' }}>
             As the match happens in real-time, the Telegram Bot and Web Live Chat will announce goals and events. 
             Your predictions are instantly settled, and the Group Leaderboard will actively update your net points!
@@ -38,7 +38,7 @@ const Rules = () => {
         </section>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: '#fff', fontSize: '20px', marginBottom: '12px' }}>🏆 4. Winning the Pool & Payouts</h2>
+          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>🏆 4. Winning the Pool & Payouts</h2>
           <p style={{ lineHeight: '1.6' }}>
             When the match officially concludes, the player(s) sitting at <strong>Rank #1</strong> on the leaderboard will take home the entire accumulated SOL Pool! 
             The smart contract will automatically execute the payout directly to your Phantom wallet.
