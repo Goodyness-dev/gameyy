@@ -230,3 +230,48 @@ body{background:var(--cr);font-family:'Nunito',sans-serif;min-height:100vh;}
   background: var(--cr-dd);
   color: var(--tm);
 }
+
+/* Winners Carousel */
+.carousel-wrap {
+  width: 100%;
+  overflow: hidden;
+  background: var(--cr-d);
+  padding: 1.25rem 0;
+  border-top: 2px solid var(--cr-dd);
+  border-bottom: 2px solid var(--cr-dd);
+  margin-bottom: 2.2rem;
+}
+.carousel-track {
+  display: flex;
+  gap: 3.5rem;
+  width: max-content;
+  animation: scroll 25s linear infinite;
+}
+.carousel-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  color: var(--tm);
+  letter-spacing: 1px;
+}
+.carousel-item span.year {
+  color: var(--gd-l);
+  background: var(--gr-dk);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 18px;
+}
+.carousel-flag {
+  width: 28px;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-left: 4px;
+  margin-right: 4px;
+}
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-50% - 1.75rem)); }
+}

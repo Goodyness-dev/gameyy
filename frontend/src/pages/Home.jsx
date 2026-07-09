@@ -4,6 +4,17 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useWallet } from '@solana/wallet-adapter-react';
 import Modal from '../components/Modal';
 
+const winners = [
+  { year: 2022, team: 'Argentina', code: 'ar' },
+  { year: 2018, team: 'France', code: 'fr' },
+  { year: 2014, team: 'Germany', code: 'de' },
+  { year: 2010, team: 'Spain', code: 'es' },
+  { year: 2006, team: 'Italy', code: 'it' },
+  { year: 2002, team: 'Brazil', code: 'br' },
+  { year: 1998, team: 'France', code: 'fr' },
+  { year: 1994, team: 'Brazil', code: 'br' }
+];
+
 const Home = () => {
   const navigate = useNavigate();
   const { setVisible } = useWalletModal();
@@ -28,7 +39,17 @@ const Home = () => {
         </div>
       </div>
 
-
+      <div className="carousel-wrap">
+        <div className="carousel-track">
+          {[...winners, ...winners].map((w, i) => (
+            <div key={i} className="carousel-item">
+              <span className="year">{w.year}</span> 
+              <img src={`https://flagcdn.com/w40/${w.code}.png`} alt={`${w.team} flag`} className="carousel-flag" />
+              {w.team}
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="how">
         <div className="hcard" onClick={() => setVisible(true)}>
