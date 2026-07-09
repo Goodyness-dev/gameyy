@@ -7,7 +7,12 @@ const LiveChat = () => {
   const isMutedRef = useRef(false);
 
   // Keep ref in sync with state so the SSE callback always has the latest value
-  useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
+  useEffect(() => { 
+    isMutedRef.current = isMuted; 
+    if (isMuted && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  }, [isMuted]);
 
   const speakText = useCallback((text) => {
     if (isMutedRef.current) return;
