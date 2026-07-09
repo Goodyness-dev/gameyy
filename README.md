@@ -1,6 +1,8 @@
 # 🏆 TxLINE Pulse: World Cup Prediction Game
 **Built for the TxODDS x Superteam Earn Hackathon**
 
+> **⚠️ HACKATHON DISCLAIMER:** This project is a Technical Proof of Concept. It operates strictly on the Solana Devnet using valueless test tokens. This application does NOT facilitate real-money gambling, fund locking, or illegal wagering. The "escrow" and "payouts" described herein are simulations of smart-contract logic intended purely for judging and educational purposes, in full compliance with the hackathon's Terms and Conditions.
+
 ## 📖 Overview
 TxLINE Pulse is a real-time, social World Cup prediction platform that brings the energy of a live group chat into a structured, automated game. Friends create private groups, stake SOL, lock in predictions before kickoff, and watch their leaderboard update live as the match plays out. 
 

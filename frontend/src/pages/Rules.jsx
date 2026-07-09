@@ -56,6 +56,14 @@ const Rules = () => {
           </p>
         </section>
 
+        <section style={{ marginBottom: '32px', background: 'rgba(255, 193, 7, 0.1)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255, 193, 7, 0.4)' }}>
+          <h2 style={{ color: '#ffb300', fontSize: '20px', marginBottom: '12px' }}>⚠️ Hackathon Disclaimer & Legal Notice</h2>
+          <p style={{ lineHeight: '1.6', color: 'var(--tm2)' }}>
+            This application is a <strong>Technical Proof of Concept</strong> built exclusively for the TxODDS x Superteam Earn Hackathon. It operates strictly on the <strong>Solana Devnet</strong> using valueless test tokens. <br/><br/>
+            TxLINE Pulse does <strong>NOT</strong> facilitate real-money gambling, illegal wagering, or actual financial escrow. The functionality demonstrated here is a simulation of smart-contract logic and real-time data synchronization intended purely for educational and competition evaluation purposes.
+          </p>
+        </section>
+
         <div style={{ textAlign: 'center', marginTop: '40px' }}>
           <Link to="/" className="btn-g" style={{ padding: '14px 32px', fontSize: '16px', textDecoration: 'none', borderRadius: '30px' }}>
             ← Back to Home
