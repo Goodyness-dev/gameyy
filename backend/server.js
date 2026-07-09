@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { Telegraf } from 'telegraf';
 import apiRoutes from './routes.js';
+import { connectTxOddsStream } from './txodds-ws.js';
 import './bot.js';
 
 dotenv.config();
@@ -22,4 +23,7 @@ app.get('/api/health', (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
+  
+  // Start the ultra-low latency TXOdds live stream listener
+  connectTxOddsStream();
 });
