@@ -25,7 +25,7 @@ const TopNav = () => {
           How to Play & Rules
         </Link>
         {/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && !window.solana ? (
-          <a href={`https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}`} style={{ background: '#AB9FF2', padding: '10px 20px', borderRadius: '4px', color: '#000', textDecoration: 'none', fontWeight: 'bold', fontSize: '14px' }}>
+          <a href={`https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}`} className="wallet-adapter-button wallet-adapter-button-trigger" style={{ textDecoration: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             Open in Phantom
           </a>
         ) : (
