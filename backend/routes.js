@@ -117,7 +117,19 @@ router.post('/groups/join', async (req, res) => {
 
   if (groupError || !group) return res.status(404).json({ error: 'Group not found' });
 
-  // 2. Add member
+  // 2. Check if already joined
+  const { data: existingMember } = await supabase
+    .from('members')
+    .select('*')
+    .eq('group_id', group.id)
+    .eq('wallet_address', wallet_address)
+    .single();
+
+  if (existingMember) {
+    return res.json({ message: 'Already joined', member: existingMember });
+  }
+
+  // 3. Add member
   const { data, error } = await supabase
     .from('members')
     .insert([{ group_id: group.id, wallet_address, telegram_username }])
@@ -126,7 +138,7 @@ router.post('/groups/join', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   
-  // 3. Initialize leaderboard entry
+  // 4. Initialize leaderboard entry
   await supabase.from('leaderboard').insert([{ group_id: group.id, member_id: data.id }]);
 
   res.json({ message: 'Joined successfully', member: data });
