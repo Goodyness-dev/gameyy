@@ -1,5 +1,5 @@
 import { getMatchEvents } from './txline.js';
-import { processMatchEvent } from './engine.js';
+import { handleGoalEvent, handleMatchEnd } from './engine.js';
 import { supabase } from './db.js';
 
 // Poll every 60 seconds (Free tier TxLINE standard)
@@ -51,11 +51,14 @@ export const startTxOddsPoller = () => {
                    home: action.scoreSoccer.Participant1?.Total?.Goals || 0,
                    away: action.scoreSoccer.Participant2?.Total?.Goals || 0
                  } : null,
-                 scorer: action.dataSoccer?.PlayerId ? `Player #${action.dataSoccer.PlayerId}` : null // Ideally mapped to name
+                 scorer: action.dataSoccer?.PlayerId ? `Player #${action.dataSoccer.PlayerId}` : null
                };
                
-               // Pass directly into the engine for payout calculations and Telegram alerts
-               await processMatchEvent(match.id, engineEvent);
+               if (isGoal) {
+                 await handleGoalEvent(match.id, engineEvent.score);
+               } else if (isMatchEnd) {
+                 await handleMatchEnd(match.id);
+               }
              }
            }
         }
