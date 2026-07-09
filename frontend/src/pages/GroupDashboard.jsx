@@ -82,7 +82,7 @@ const GroupDashboard = () => {
     <div className="wrap">
       <div className="lobby-hdr">
         <div className="group-badge">{groupData.groupName.toUpperCase()}</div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', padding: '10px' }}>
           
           {/* Telegram Deep Link Button */}
           <a 
@@ -119,25 +119,21 @@ const GroupDashboard = () => {
       </div>
       <div className="grid">
         <div>
-          <div className="sec-label" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-            Upcoming matches
-            <Link to={`/group/${id || 'LM79C3'}/predict`} className="btn-g" style={{
-              padding: '12px 24px', 
-              fontSize: '15px', 
-              textDecoration: 'none', 
-              boxShadow: '0 4px 14px rgba(234, 182, 49, 0.4)',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(234, 182, 49, 0.6)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(234, 182, 49, 0.4)'; }}
-            >
-              Make Picks <span style={{fontSize: '18px'}}>→</span>
-            </Link>
+          <div className="sec-label" style={{display: 'flex', justifyContent: 'center', alignItems: 'center', letterSpacing: '1px'}}>
+            UPCOMING MATCHES
           </div>
-          <div className="match-card">
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.02)', 
+            border: '1px solid var(--cr-dd)', 
+            borderRadius: '20px', 
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            marginBottom: '24px',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.1)'
+          }}>
+            <div className="match-card" style={{ marginBottom: 0 }}>
             <div className="match-teams">
               <div className="flag" style={{background: 'none', border: 'none', padding: 0}}>
                 <img src="https://hatscripts.github.io/circle-flags/flags/ar.svg" alt="Argentina" width="34" height="34" />
@@ -151,8 +147,8 @@ const GroupDashboard = () => {
                 <img src="https://hatscripts.github.io/circle-flags/flags/fr.svg" alt="France" width="34" height="34" />
               </div>
             </div>
-          </div>
-          <div className="match-card">
+            </div>
+            <div className="match-card" style={{ marginBottom: 0 }}>
             <div className="match-teams">
               <div className="flag" style={{background: 'none', border: 'none', padding: 0}}>
                 <img src="https://hatscripts.github.io/circle-flags/flags/br.svg" alt="Brazil" width="34" height="34" />
@@ -166,6 +162,27 @@ const GroupDashboard = () => {
                 <img src="https://hatscripts.github.io/circle-flags/flags/es.svg" alt="Spain" width="34" height="34" />
               </div>
             </div>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
+            <Link to={`/group/${id || 'LM79C3'}/predict`} className="btn-g" style={{
+              padding: '16px 40px', 
+              fontSize: '16px', 
+              fontWeight: 'bold',
+              textDecoration: 'none', 
+              boxShadow: '0 6px 20px rgba(234, 182, 49, 0.4)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              borderRadius: '30px'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(234, 182, 49, 0.6)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(234, 182, 49, 0.4)'; }}
+            >
+              MAKE PICKS <span style={{fontSize: '20px'}}>→</span>
+            </Link>
           </div>
         </div>
         <div className="sidebar">
