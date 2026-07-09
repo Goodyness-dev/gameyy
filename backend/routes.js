@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from './db.js';
 import { getMatches, getMatchById, getMatchOdds } from './txline.js';
+import { processMatchEvent } from './engine.js';
 import { Connection } from '@solana/web3.js';
 
 const router = express.Router();
@@ -308,6 +309,30 @@ router.get('/predictions/:inviteCode/:walletAddress', async (req, res) => {
     res.json(formatted);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * @route POST /api/webhook/txline
+ * @desc Production webhook endpoint for receiving live match events from the sports data provider.
+ */
+router.post('/webhook/txline', async (req, res) => {
+  const liveEventData = req.body;
+  
+  if (!liveEventData || !liveEventData.match_id) {
+    return res.status(400).json({ error: 'Invalid webhook payload' });
+  }
+
+  try {
+    console.log(`[WEBHOOK] Received live event for match ${liveEventData.match_id}: ${liveEventData.event || 'UPDATE'}`);
+    
+    // Pass the real-time event directly into our existing engine
+    await processMatchEvent(liveEventData.match_id, liveEventData);
+    
+    res.status(200).send('Webhook Processed Successfully');
+  } catch (err) {
+    console.error('[WEBHOOK ERROR]', err);
+    res.status(500).send('Internal Engine Error');
   }
 });
 
