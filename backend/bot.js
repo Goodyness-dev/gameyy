@@ -111,12 +111,19 @@ const generateGoalAudio = async (script) => {
  */
 export const broadcastGoal = async (chatId, event, ruinedUsernames) => {
   const script = generateTrashTalk(event.scorer, event.minute, ruinedUsernames);
-  
+  const audio = await generateGoalAudio(script);
+
+  // Broadcast to web SSE clients unconditionally
+  globalEvents.emit('chat_message', {
+    text: script,
+    audioUrl: audio?.url || null, // For web, we prefer the URL if available
+    timestamp: new Date().toISOString()
+  });
+
   // Send text first for speed
   try {
     await bot.telegram.sendMessage(chatId, `⚽ ${script}`);
     // Then send the voice note
-    const audio = await generateGoalAudio(script);
     if (audio) {
       try {
         if (audio.source) {
@@ -128,14 +135,6 @@ export const broadcastGoal = async (chatId, event, ruinedUsernames) => {
         console.error('Failed to send telegram voice:', e.message);
       }
     }
-    
-    // Broadcast to web SSE clients
-    globalEvents.emit('chat_message', {
-      text: script,
-      audioUrl: audio?.url || null, // For web, we prefer the URL if available
-      timestamp: new Date().toISOString()
-    });
-    
   } catch (e) { console.log("Bot broadcast failed (likely no valid token)"); }
 };
 
@@ -144,13 +143,35 @@ export const broadcastGoal = async (chatId, event, ruinedUsernames) => {
  */
 export const broadcastFlashMarket = async (chatId, event, matchId) => {
   console.log(`[FLASH MARKET] Triggering VAR check...`);
-  const message = `🚨 VAR CHECK IN PROGRESS 🚨\n${event.description}\n\nWill a penalty be awarded? You have 30 seconds to vote. Risk: 5 points.`;
-  
+  const script = `🚨 VAR CHECK INITIATED 🚨\nPossible Penalty. Will it be given?`;
+  const message = `${script}\n\nType YES or NO to place a 5 point Flash Bet!`;
+
+  const audio = await generateGoalAudio(script);
+
+  // Broadcast to web SSE clients unconditionally
+  globalEvents.emit('chat_message', {
+    text: script,
+    audioUrl: audio?.url || null,
+    timestamp: new Date().toISOString()
+  });
+
   try {
     await bot.telegram.sendMessage(chatId, message, Markup.inlineKeyboard([
       Markup.button.callback('Yes (+5 / -5 pts)', 'flash_var_yes'),
       Markup.button.callback('No (+5 / -5 pts)', 'flash_var_no')
     ]));
+    
+    if (audio) {
+      try {
+        if (audio.source) {
+          await bot.telegram.sendVoice(chatId, audio);
+        } else if (audio.url) {
+          await bot.telegram.sendVoice(chatId, { url: audio.url });
+        }
+      } catch(e) {
+        console.error('Failed to send telegram voice:', e.message);
+      }
+    }
   } catch (e) { console.error("Bot flash market failed:", e.message || e); }
 };
 
@@ -195,16 +216,16 @@ export const resolveFlashMarket = async (chatId, event, matchId) => {
   // Clear bets
   for (const key in flashBets) delete flashBets[key];
 
-  try {
-    await bot.telegram.sendMessage(chatId, resultMsg);
-  } catch (e) { console.log("Bot resolve failed (likely no valid token)"); }
-
-  // Broadcast to web SSE clients
+  // Broadcast to web SSE clients unconditionally
   globalEvents.emit('chat_message', {
     text: resultMsg,
     audioUrl: null,
     timestamp: new Date().toISOString()
   });
+
+  try {
+    await bot.telegram.sendMessage(chatId, resultMsg);
+  } catch (e) { console.log("Bot resolve failed (likely no valid token)"); }
 };
 
 // Start the bot if a real token is provided
