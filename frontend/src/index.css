@@ -10,7 +10,7 @@
 }
 body{background:var(--cr);font-family:'Nunito',sans-serif;min-height:100vh;}
 
-.nav{background:var(--gr-dk);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:3px solid var(--gd);position:relative;}
+.nav{background:var(--gr-dk);padding:10px 2rem;display:flex;align-items:center;justify-content:space-between;min-height:56px;height:auto;border-bottom:3px solid var(--gd);position:relative;flex-wrap:wrap;gap:10px;}
 .nav::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,var(--pl) 0,var(--pl) 1px,transparent 1px,transparent 60px);pointer-events:none;}
 .logo{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:var(--cr);display:flex;align-items:center;gap:8px;position:relative;text-decoration:none;}
 .logo-accent{color:var(--gd);}
