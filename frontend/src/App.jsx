@@ -12,6 +12,7 @@ import CreateGroup from './pages/CreateGroup';
 import GroupDashboard from './pages/GroupDashboard';
 import PredictMatch from './pages/PredictMatch';
 import JoinGroup from './pages/JoinGroup';
+import Rules from './pages/Rules';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useWallet } from '@solana/wallet-adapter-react';
 
@@ -19,7 +20,10 @@ const TopNav = () => {
   return (
     <nav className="nav">
       <Link to="/" className="logo">⚽ TxLINE <span className="logo-accent">Pulse</span></Link>
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+        <Link to="/rules" style={{ color: 'var(--gd)', fontWeight: 'bold', textDecoration: 'none', fontSize: '14px', borderBottom: '1px solid transparent' }} onMouseEnter={e => e.currentTarget.style.borderBottom = '1px solid var(--gd)'} onMouseLeave={e => e.currentTarget.style.borderBottom = '1px solid transparent'}>
+          How to Play & Rules
+        </Link>
         <WalletMultiButton />
       </div>
     </nav>
@@ -44,7 +48,9 @@ const App = () => {
                 <Route path="/create" element={<CreateGroup />} />
                 <Route path="/group/:id" element={<GroupDashboard />} />
                 <Route path="/group/:id/predict" element={<PredictMatch />} />
+                <Route path="/group/join/:id" element={<ProtectedRoute><JoinGroup /></ProtectedRoute>} />
               </Route>
+              <Route path="/rules" element={<Rules />} />
             </Routes>
           </BrowserRouter>
         </WalletModalProvider>
