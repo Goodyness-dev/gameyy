@@ -56,7 +56,7 @@ export const runDemo = async () => {
   const realMatchId1 = matchData1.id;
   const realMatchId2 = matchData2.id;
 
-  console.log('Simulating live match events every 1 second...');
+  console.log('Simulating live match events every 10 seconds...');
 
   const matchDataJSON = loadMockData();
   const events1 = matchDataJSON.events;
@@ -74,7 +74,7 @@ export const runDemo = async () => {
   const simulateMatch = async (events, realMatchId, name) => {
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
-      await delay(1000); 
+      await delay(10000); 
 
       console.log(`\n[${name} - MINUTE ${event.minute}] Event: ${event.type.toUpperCase()}`);
 
