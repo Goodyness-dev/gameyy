@@ -3,6 +3,8 @@ import { supabase } from './db.js';
 import { getMatches, getMatchById, getMatchOdds } from './txline.js';
 import { handleGoalEvent, handleMatchEnd } from './engine.js';
 import { Connection } from '@solana/web3.js';
+import * as googleTTS from 'google-tts-api';
+import axios from 'axios';
 
 const router = express.Router();
 const connection = new Connection('https://api.devnet.solana.com');
@@ -349,6 +351,23 @@ router.post('/webhook/txline', async (req, res) => {
   } catch (err) {
     console.error('[WEBHOOK ERROR]', err);
     res.status(500).send('Internal Engine Error');
+  }
+});
+
+/**
+ * @route GET /api/tts
+ * @desc Proxy for Google TTS to bypass browser CORS
+ */
+router.get('/tts', async (req, res) => {
+  const { text } = req.query;
+  if (!text) return res.status(400).json({ error: 'Missing text' });
+  try {
+    const url = googleTTS.getAudioUrl(text, { lang: 'en', slow: false, host: 'https://translate.google.com' });
+    const response = await axios.get(url, { responseType: 'stream' });
+    res.setHeader('Content-Type', 'audio/mpeg');
+    response.data.pipe(res);
+  } catch (err) {
+    res.redirect('https://actions.google.com/sounds/v1/crowds/crowd_cheer.ogg');
   }
 });
 

@@ -76,9 +76,10 @@ const generateGoalAudio = async (script) => {
         host: 'https://translate.google.com',
       });
       
-      // Fetch the audio server-side to bypass browser Referer/CORS blocks on translate.google.com
-      const response = await axios.get(url, { responseType: 'arraybuffer' });
-      return { source: Buffer.from(response.data) };
+      return { 
+        url: url, // For Telegram
+        webUrl: `http://localhost:3000/api/tts?text=${encodeURIComponent(script)}` // For Web
+      };
     } catch(e) {
       // Fallback to cheering if text is too long or errors
       return { url: 'https://actions.google.com/sounds/v1/crowds/crowd_cheer.ogg' };
@@ -119,7 +120,7 @@ export const broadcastGoal = async (chatId, event, ruinedUsernames) => {
   // Broadcast to web SSE clients unconditionally
   globalEvents.emit('chat_message', {
     text: script,
-    audioUrl: audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
+    audioUrl: audio?.webUrl || audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
     timestamp: new Date().toISOString()
   });
 
@@ -154,7 +155,7 @@ export const broadcastFlashMarket = async (chatId, event, matchId) => {
   // Broadcast to web SSE clients unconditionally
   globalEvents.emit('chat_message', {
     text: script,
-    audioUrl: audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
+    audioUrl: audio?.webUrl || audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
     timestamp: new Date().toISOString()
   });
 
@@ -240,7 +241,7 @@ export const broadcastWinner = async (chatId, matchName, winners, payout) => {
 
   globalEvents.emit('chat_message', {
     text: script,
-    audioUrl: audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
+    audioUrl: audio?.webUrl || audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
     timestamp: new Date().toISOString()
   });
 
