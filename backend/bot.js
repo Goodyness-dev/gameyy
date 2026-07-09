@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as googleTTS from 'google-tts-api';
+import { globalEvents } from './events.js';
 
 dotenv.config();
 
@@ -117,8 +118,24 @@ export const broadcastGoal = async (chatId, event, ruinedUsernames) => {
     // Then send the voice note
     const audio = await generateGoalAudio(script);
     if (audio) {
-      await bot.telegram.sendVoice(chatId, audio);
+      try {
+        if (audio.source) {
+          await bot.telegram.sendVoice(chatId, audio);
+        } else if (audio.url) {
+          await bot.telegram.sendVoice(chatId, { url: audio.url });
+        }
+      } catch(e) {
+        console.error('Failed to send telegram voice:', e.message);
+      }
     }
+    
+    // Broadcast to web SSE clients
+    globalEvents.emit('chat_message', {
+      text: script,
+      audioUrl: audio?.url || null, // For web, we prefer the URL if available
+      timestamp: new Date().toISOString()
+    });
+    
   } catch (e) { console.log("Bot broadcast failed (likely no valid token)"); }
 };
 
@@ -181,6 +198,13 @@ export const resolveFlashMarket = async (chatId, event, matchId) => {
   try {
     await bot.telegram.sendMessage(chatId, resultMsg);
   } catch (e) { console.log("Bot resolve failed (likely no valid token)"); }
+
+  // Broadcast to web SSE clients
+  globalEvents.emit('chat_message', {
+    text: resultMsg,
+    audioUrl: null,
+    timestamp: new Date().toISOString()
+  });
 };
 
 // Start the bot if a real token is provided

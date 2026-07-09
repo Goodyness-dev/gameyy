@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { Telegraf } from 'telegraf';
 import apiRoutes from './routes.js';
 import { startTxOddsPoller } from './txodds-poller.js';
+import { globalEvents } from './events.js';
 import './bot.js';
 
 dotenv.config();
@@ -19,6 +20,28 @@ app.use('/api', apiRoutes);
 // Basic health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// SSE Endpoint for Live Chat Web Clients
+app.get('/api/live-chat/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Send an initial connected message
+  res.write(`data: ${JSON.stringify({ type: 'connected', message: 'Connected to Live Chat Stream' })}\n\n`);
+
+  // Listener for new chat messages
+  const chatListener = (data) => {
+    res.write(`data: ${JSON.stringify({ type: 'chat_message', ...data })}\n\n`);
+  };
+
+  globalEvents.on('chat_message', chatListener);
+
+  req.on('close', () => {
+    globalEvents.off('chat_message', chatListener);
+  });
 });
 
 app.listen(port, () => {

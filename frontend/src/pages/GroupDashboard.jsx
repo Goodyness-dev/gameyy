@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
+import LiveChat from '../components/LiveChat';
 
 const GroupDashboard = () => {
   const { id } = useParams();
@@ -256,7 +257,8 @@ const GroupDashboard = () => {
               </div>
             )}
           </div>
-
+          
+          <LiveChat />
         </div>
       </div>
     </div>
