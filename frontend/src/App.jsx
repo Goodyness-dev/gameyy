@@ -21,9 +21,11 @@ const TopNav = () => {
     <nav className="nav">
       <Link to="/" className="logo">⚽ TxLINE <span className="logo-accent">Pulse</span></Link>
       <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-        <Link to="/rules" style={{ color: 'var(--gd)', fontWeight: 'bold', textDecoration: 'none', fontSize: '14px', borderBottom: '1px solid transparent', whiteSpace: 'nowrap' }} onMouseEnter={e => e.currentTarget.style.borderBottom = '1px solid var(--gd)'} onMouseLeave={e => e.currentTarget.style.borderBottom = '1px solid transparent'}>
-          How to Play & Rules
-        </Link>
+        {!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && (
+          <Link to="/rules" style={{ color: 'var(--gd)', fontWeight: 'bold', textDecoration: 'none', fontSize: '14px', borderBottom: '1px solid transparent', whiteSpace: 'nowrap' }} onMouseEnter={e => e.currentTarget.style.borderBottom = '1px solid var(--gd)'} onMouseLeave={e => e.currentTarget.style.borderBottom = '1px solid transparent'}>
+            How to Play & Rules
+          </Link>
+        )}
         {/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && !window.solana ? (
           <a href={`https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}`} className="wallet-adapter-button wallet-adapter-button-trigger" style={{ textDecoration: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             Open in Phantom
@@ -33,6 +35,17 @@ const TopNav = () => {
         )}
       </div>
     </nav>
+  );
+};
+
+const Footer = () => {
+  if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return null;
+  return (
+    <footer style={{ textAlign: 'center', padding: '30px 20px', marginTop: '40px' }}>
+      <Link to="/rules" style={{ color: 'var(--gd)', fontWeight: 'bold', textDecoration: 'none', fontSize: '14px', background: 'var(--gr-dk)', padding: '10px 20px', borderRadius: '8px' }}>
+        How to Play & Rules
+      </Link>
+    </footer>
   );
 };
 
@@ -58,6 +71,7 @@ const App = () => {
               </Route>
               <Route path="/rules" element={<Rules />} />
             </Routes>
+            <Footer />
           </BrowserRouter>
         </WalletModalProvider>
       </WalletProvider>
