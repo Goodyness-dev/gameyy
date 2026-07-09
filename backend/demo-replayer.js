@@ -4,6 +4,7 @@ import { supabase } from './db.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -104,5 +105,11 @@ export const runDemo = async () => {
 
 // If run directly: node demo-replayer.js
 if (process.argv[1] === __filename) {
-  runDemo();
+  console.log("Triggering demo on the live server (so Web Chat works)...");
+  axios.post('http://localhost:3000/api/demo/start')
+    .then(() => console.log("✅ Demo triggered! Go look at your Web Dashboard!"))
+    .catch(() => {
+       console.log("⚠️ Server not running on 3000. Running demo in isolated terminal instead.");
+       runDemo();
+    });
 }

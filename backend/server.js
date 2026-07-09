@@ -5,6 +5,7 @@ import { Telegraf } from 'telegraf';
 import apiRoutes from './routes.js';
 import { startTxOddsPoller } from './txodds-poller.js';
 import { globalEvents } from './events.js';
+import { runDemo } from './demo-replayer.js';
 import './bot.js';
 
 dotenv.config();
@@ -20,6 +21,12 @@ app.use('/api', apiRoutes);
 // Basic health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Demo trigger endpoint
+app.post('/api/demo/start', (req, res) => {
+  runDemo();
+  res.json({ success: true });
 });
 
 // SSE Endpoint for Live Chat Web Clients
