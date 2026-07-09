@@ -75,7 +75,10 @@ const generateGoalAudio = async (script) => {
         slow: false,
         host: 'https://translate.google.com',
       });
-      return { url };
+      
+      // Fetch the audio server-side to bypass browser Referer/CORS blocks on translate.google.com
+      const response = await axios.get(url, { responseType: 'arraybuffer' });
+      return { source: Buffer.from(response.data) };
     } catch(e) {
       // Fallback to cheering if text is too long or errors
       return { url: 'https://actions.google.com/sounds/v1/crowds/crowd_cheer.ogg' };
