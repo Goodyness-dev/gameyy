@@ -1,6 +1,7 @@
 import { supabase } from './db.js';
 import { Connection, Keypair, SystemProgram, Transaction, PublicKey, sendAndConfirmTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import bs58 from 'bs58';
+import { broadcastWinner } from './bot.js';
 
 export const handleGoalEvent = async (event, matchId) => {
   console.log(`[TxLINE EVENT] Goal! Scorer: ${event.scorer}, Minute: ${event.minute}, Score: ${event.score.home}-${event.score.away}`);
@@ -141,6 +142,25 @@ const executePayouts = async (matchId) => {
         payout.signature = signature;
       } catch (err) {
         console.error(`❌ [ERROR] Failed to send payout to ${payout.wallet}:`, err.message);
+      }
+    }
+    
+    // Broadcast winner announcement
+    const { data: groupDataFromDb } = await supabase.from('groups').select('chat_id').eq('id', groupId).single();
+    const chatId = groupDataFromDb?.chat_id;
+    if (chatId) {
+      if (topScore <= 0) {
+        await broadcastWinner(chatId, "The Match", [], 0);
+      } else {
+        // Find winner usernames
+        const { data: winnerMembers } = await supabase
+          .from('members')
+          .select('id, user_id')
+          .in('id', lb.filter(entry => (parseFloat(entry.total_pts) / 100) === topScore).map(w => w.member_id));
+          
+        const winnerNames = winnerMembers ? winnerMembers.map(w => w.user_id) : [];
+        const payoutPerWinner = groupData.pool / winnerNames.length;
+        await broadcastWinner(chatId, "The Match", winnerNames, payoutPerWinner);
       }
     }
     

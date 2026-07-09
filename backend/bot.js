@@ -228,6 +228,28 @@ export const resolveFlashMarket = async (chatId, event, matchId) => {
   } catch (e) { console.log("Bot resolve failed (likely no valid token)"); }
 };
 
+export const broadcastWinner = async (chatId, matchName, winners, payout) => {
+  const script = winners.length > 0
+    ? `🏁 FULL TIME! ${matchName} is over! 🏆 Congratulations to our winner${winners.length > 1 ? 's' : ''}: ${winners.join(', ')}! You won ${payout.toFixed(2)} SOL!`
+    : `🏁 FULL TIME! ${matchName} is over! Sadly, nobody scored any points. 80% of the pool has been refunded to all players. Better luck next time!`;
+
+  const audio = await generateGoalAudio(script);
+
+  globalEvents.emit('chat_message', {
+    text: script,
+    audioUrl: audio?.url || null,
+    timestamp: new Date().toISOString()
+  });
+
+  try {
+    await bot.telegram.sendMessage(chatId, `🏆 ${script}`);
+    if (audio) {
+      if (audio.source) await bot.telegram.sendVoice(chatId, audio);
+      else if (audio.url) await bot.telegram.sendVoice(chatId, { url: audio.url });
+    }
+  } catch (e) { console.log("Bot winner broadcast failed"); }
+};
+
 // Start the bot if a real token is provided
 if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BOT_TOKEN !== 'your_telegram_bot_token') {
   bot.launch().then(() => console.log('Telegram Bot running.')).catch(e => console.log('Telegram failed:', e.message));
