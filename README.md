@@ -11,28 +11,30 @@ Instead of constantly checking a website, users link their Telegram group chat. 
 ---
 
 ## ✨ Key Features
+- **Frictionless Demo Wallets:** Users can instantly generate a burner web wallet and receive an airdrop of 100 PULSE tokens to play with, removing the barrier to entry of installing Phantom for the demo.
+- **Additive Point-Based Parlays:** A forgiving parlay system where picks across multiple matches are mathematically split. Winning picks add to a match multiplier, and losing picks subtract.
 - **Real-Time Match Engine:** Powered by the **TxLINE API**, polling live match events and odds.
-- **Telegram Native UX:** Live notifications, leaderboards, and flash markets (e.g., predicting on VAR checks) delivered directly to Telegram via **Telegraf**.
-- **AI Text-to-Speech Voice Notes:** Goal events trigger custom "trash talk" scripts that are converted to highly expressive audio using **ElevenLabs** and sent as voice notes to the chat.
-- **Solana Escrow & Auto-Payouts:** Users pay an entry fee in SOL on the Solana Devnet. The backend verifies the transaction signature, holds the funds in a treasury, and programmatically executes payouts to the winner(s) at full-time using `@solana/web3.js`.
-- **4-Pick System:** Simple, fast predictions: Match Result, Both Teams to Score, Over/Under 2.5 Goals, and First Goalscorer.
+- **Telegram Native UX:** Live notifications, leaderboards, and flash markets delivered directly to Telegram via **Telegraf**.
+- **AI Text-to-Speech Voice Notes:** Goal events trigger custom "trash talk" scripts converted to highly expressive audio using **ElevenLabs** and sent as voice notes to the chat.
+- **Automated Payouts:** The backend verifies predictions, computes payouts using the additive logic, and dynamically mints SPL tokens (PULSE) to the winners in real-time.
 
 ---
 
 ## 🏗️ Architecture & How It Works Behind the Scenes
 
 ### 1. The User Flow
-1. **Create/Join:** A user creates a group on the web app, paying an entry fee in SOL via their Phantom wallet. They receive an invite code.
-2. **Link Telegram:** The group creator sends the invite link to their Telegram bot (`/start LINK_<invite_code>`), binding the web group to their Telegram chat.
-3. **Predict:** Members join the web app, connect their wallet, pay the entry fee, and make their 4 picks before kickoff.
-4. **Live Match:** Once the match starts, predictions lock. The backend constantly polls TxLINE for events.
-5. **Goal!:** When a goal happens, the game engine partially evaluates picks (e.g., First Goalscorer). The bot crafts a TTS script detailing who scored and whose predictions were ruined, generating a voice note and sending it to Telegram.
-6. **Full-Time:** The backend evaluates all final predictions, updates the leaderboard, and executes the Solana payout to the highest scorer.
+1. **Create Wallet:** A user arrives on the web app and clicks "Create Wallet" to instantly generate a local keypair and receive 100 PULSE test tokens.
+2. **Create/Join Group:** The user creates a private group or joins an existing one via an invite code. The active groups are instantly visible on their personalized Home dashboard.
+3. **Link Telegram:** The group creator sends the invite link to their Telegram bot (`/start LINK_<invite_code>`), binding the web group to their Telegram chat.
+4. **Predict (Additive Parlays):** Members use their PULSE tokens to lock in predictions before kickoff. The wager is split across the selected matches.
+5. **Live Match:** Once the match starts, predictions lock. The backend constantly polls TxLINE for events.
+6. **Goal!:** When a goal happens, the game engine partially evaluates picks. The bot crafts a TTS script detailing who scored and whose predictions were ruined, generating a voice note and sending it to Telegram.
+7. **Resolution:** The backend evaluates predictions match-by-match. If a user's final odds multiplier (Sum of Won Picks - Sum of Lost Picks) is positive, the engine instantly mints the PULSE token payout to their wallet, and their live navbar balance and leaderboard rank automatically update!
 
 ### 2. The Game Engine (`backend/engine.js`)
 The core engine acts as the referee. It listens to the TxLINE event feed.
-- **`handleGoalEvent`**: When TxLINE reports a goal, the engine immediately checks if "Both Teams to Score" hit, or if the "First Goalscorer" prediction was correct. It updates the database and recalculates the leaderboard so the frontend can reflect the changes instantly.
-- **`executePayouts`**: At match end, the engine queries Supabase for the final leaderboard. It groups members by their pools, identifies the highest scores, and splits the pot. It creates a Solana transaction using the `SystemProgram.transfer`, signs it with the `TREASURY_PRIVATE_KEY`, and confirms the transaction on-chain.
+- **`handleGoalEvent`**: When TxLINE reports a goal, the engine immediately checks if "Both Teams to Score" hit, or if the "First Goalscorer" prediction was correct.
+- **`executePayouts`**: At match end, the engine evaluates the additive odds logic (`Sum of Won - Sum of Lost`). If positive, it calculates the payout (`Wager * Final Multiplier`), creates a Solana transaction using the SPL Token Program, and mints the PULSE tokens directly to the user's wallet.
 
 ### 3. Telegram & ElevenLabs Architecture (`backend/bot.js`)
 The Telegram bot is built using `Telegraf.js`.
