@@ -43,6 +43,11 @@ const GroupDashboard = () => {
                   // Auto-correct old users who joined before the init fix
                   livePts = 100;
                 }
+                
+                if (entry.members?.wallet_address === activeWallet) {
+                  window.dispatchEvent(new CustomEvent('balanceUpdated', { detail: livePts }));
+                }
+
                 return {
                   rank: idx + 1,
                   user: entry.members?.telegram_username || 'Unknown',

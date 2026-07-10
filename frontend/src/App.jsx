@@ -47,7 +47,14 @@ const DemoWalletButton = () => {
     };
     fetchBalance();
     const intervalId = setInterval(fetchBalance, 3000);
-    return () => clearInterval(intervalId);
+    
+    const handleBalanceUpdate = (e) => setBalance(e.detail);
+    window.addEventListener('balanceUpdated', handleBalanceUpdate);
+    
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('balanceUpdated', handleBalanceUpdate);
+    };
   }, [wallet, inviteCode]);
 
   React.useEffect(() => {

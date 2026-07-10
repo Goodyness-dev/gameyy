@@ -7,6 +7,7 @@ import { getOrCreateAssociatedTokenAccount, mintTo } from '@solana/spl-token';
 import bs58 from 'bs58';
 import * as googleTTS from 'google-tts-api';
 import axios from 'axios';
+import { broadcastUpcomingMatches } from './bot.js';
 
 const router = express.Router();
 const connection = new Connection('https://api.devnet.solana.com');
@@ -495,6 +496,31 @@ router.get('/tts', async (req, res) => {
     response.data.pipe(res);
   } catch (err) {
     res.redirect('https://actions.google.com/sounds/v1/crowds/crowd_cheer.ogg');
+  }
+});
+
+/**
+ * @route POST /api/demo/upcoming-alert
+ * @desc Manual trigger for hackathon demo to announce new odds available on Telegram
+ */
+router.post('/demo/upcoming-alert', async (req, res) => {
+  const { matchCount = 4 } = req.body;
+  
+  try {
+    const { data: groups } = await supabase.from('groups').select('chat_id').not('chat_id', 'is', null);
+    
+    if (groups && groups.length > 0) {
+      for (const group of groups) {
+        if (group.chat_id) {
+          await broadcastUpcomingMatches(group.chat_id, matchCount);
+        }
+      }
+      res.json({ success: true, message: `Broadcasted to ${groups.length} groups` });
+    } else {
+      res.json({ success: true, message: 'No groups with active telegram chats found' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
