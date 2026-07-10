@@ -148,7 +148,7 @@ export const broadcastGoal = async (chatId, event, ruinedUsernames) => {
 export const broadcastFlashMarket = async (chatId, event, matchId) => {
   console.log(`[FLASH MARKET] Triggering VAR check...`);
   const script = `🚨 VAR CHECK INITIATED 🚨\nPossible Penalty. Will it be given?`;
-  const message = `${script}\n\nType YES or NO to place a 5 point Flash Bet!`;
+  const message = `${script}\n\nType YES or NO to make a 5 point Flash Prediction!`;
 
   const audio = await generateGoalAudio(script);
 
@@ -182,15 +182,15 @@ export const broadcastFlashMarket = async (chatId, event, matchId) => {
 bot.action('flash_var_yes', (ctx) => {
   const user = ctx.from.username || ctx.from.first_name;
   flashBets[user] = 'yes';
-  ctx.answerCbQuery('Bet placed: YES');
-  ctx.reply(`⚡ @${user} bet YES.`);
+  ctx.answerCbQuery('Prediction logged: YES');
+  ctx.reply(`⚡ @${user} predicted YES.`);
 });
 
 bot.action('flash_var_no', (ctx) => {
   const user = ctx.from.username || ctx.from.first_name;
   flashBets[user] = 'no';
-  ctx.answerCbQuery('Bet placed: NO');
-  ctx.reply(`⚡ @${user} bet NO.`);
+  ctx.answerCbQuery('Prediction logged: NO');
+  ctx.reply(`⚡ @${user} predicted NO.`);
 });
 
 export const resolveFlashMarket = async (chatId, event, matchId) => {
@@ -215,7 +215,7 @@ export const resolveFlashMarket = async (chatId, event, matchId) => {
   
   if (winners.length > 0) resultMsg += `✅ Winners (+5 pts): ${winners.join(', ')}\n`;
   if (losers.length > 0) resultMsg += `❌ Losers (-5 pts): ${losers.join(', ')}\n`;
-  if (winners.length === 0 && losers.length === 0) resultMsg += `Nobody placed a bet!`;
+  if (winners.length === 0 && losers.length === 0) resultMsg += `Nobody made a prediction!`;
 
   // Clear bets
   for (const key in flashBets) delete flashBets[key];

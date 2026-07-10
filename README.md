@@ -4,7 +4,7 @@
 > **⚠️ HACKATHON DISCLAIMER:** This project is a Technical Proof of Concept. It operates strictly on the Solana Devnet using valueless test tokens. This application does NOT facilitate real-money gambling, fund locking, or illegal wagering. The "escrow" and "payouts" described herein are simulations of smart-contract logic intended purely for judging and educational purposes, in full compliance with the hackathon's Terms and Conditions.
 
 ## 📖 Overview
-TxLINE Pulse is a real-time, social World Cup prediction platform that brings the energy of a live group chat into a structured, automated game. Friends create private groups, stake SOL, lock in predictions before kickoff, and watch their leaderboard update live as the match plays out. 
+TxLINE Pulse is a real-time, social World Cup prediction platform that brings the energy of a live group chat into a structured, automated game. Friends create private groups, pool SOL, lock in predictions before kickoff, and watch their leaderboard update live as the match plays out. 
 
 Instead of constantly checking a website, users link their Telegram group chat. The system automatically pushes live match events, dynamic flash markets, and **AI-generated voice notes** reacting to goals in real-time. When the final whistle blows, the game engine calculates the final scores and automatically triggers Solana Devnet smart contracts to pay out the winner.
 
@@ -12,7 +12,7 @@ Instead of constantly checking a website, users link their Telegram group chat. 
 
 ## ✨ Key Features
 - **Real-Time Match Engine:** Powered by the **TxLINE API**, polling live match events and odds.
-- **Telegram Native UX:** Live notifications, leaderboards, and flash markets (e.g., betting on VAR checks) delivered directly to Telegram via **Telegraf**.
+- **Telegram Native UX:** Live notifications, leaderboards, and flash markets (e.g., predicting on VAR checks) delivered directly to Telegram via **Telegraf**.
 - **AI Text-to-Speech Voice Notes:** Goal events trigger custom "trash talk" scripts that are converted to highly expressive audio using **ElevenLabs** and sent as voice notes to the chat.
 - **Solana Escrow & Auto-Payouts:** Users pay an entry fee in SOL on the Solana Devnet. The backend verifies the transaction signature, holds the funds in a treasury, and programmatically executes payouts to the winner(s) at full-time using `@solana/web3.js`.
 - **4-Pick System:** Simple, fast predictions: Match Result, Both Teams to Score, Over/Under 2.5 Goals, and First Goalscorer.

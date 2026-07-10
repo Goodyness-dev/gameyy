@@ -307,7 +307,7 @@ const PredictMatch = () => {
         <div className="betslip" style={{ position: 'sticky', top: '2rem', height: 'fit-content' }}>
           <div className="bs-deco1"></div>
           <div className="bs-deco2"></div>
-          <div className="bs-title">⚽ Master bet slip</div>
+          <div className="bs-title">⚽ Master prediction slip</div>
           <div className="bs-row">
             <span className="bs-lbl">Potential max points</span>
             <span className="pts-pos">+{totalPos.toFixed(2)} pts</span>

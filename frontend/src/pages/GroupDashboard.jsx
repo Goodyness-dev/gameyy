@@ -215,7 +215,7 @@ const GroupDashboard = () => {
                     <strong style={{ color: 'var(--tm)' }}>{escrows.length}</strong>
                   </div>
                   <div className="e-row" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Total Stake Escrowed:</span>
+                    <span>Total Pool Escrowed:</span>
                     <strong style={{ color: 'var(--gd)' }}>{(escrows.length * groupData.entryFee).toFixed(2)} SOL</strong>
                   </div>
                 </div>

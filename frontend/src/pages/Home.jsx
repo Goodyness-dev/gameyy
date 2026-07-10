@@ -25,7 +25,7 @@ const Home = () => {
         <div className="hero-grid"></div>
         <div className="hero-circle"></div>
         <div className="badge">⚽ WORLD CUP 2026 · POWERED BY TxLINE</div>
-        <h1 className="htitle">PREDICT.<br/><em>STAKE. WIN.</em></h1>
+        <h1 className="htitle">PREDICT.<br/><em>POOL. WIN.</em></h1>
         <p className="hsub">Connect your wallet, join a group, pick your markets before kickoff.</p>
         <div className="hbtns">
           <Link to="/create" className="btn-g" style={{textDecoration: 'none'}}>⚽ Create a group</Link>
