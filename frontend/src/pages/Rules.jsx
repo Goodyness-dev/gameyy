@@ -9,52 +9,41 @@ const Rules = () => {
         <h1 style={{ color: 'var(--gd)', marginBottom: '24px', fontSize: '28px' }}>📜 How to Play TxLINE Pulse</h1>
         
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>1. Join a Group & Pay the Entry Fee</h2>
+          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>1. Create Wallet & Claim Tokens</h2>
           <p style={{ lineHeight: '1.6' }}>
-            To participate, you must join a private group via an invite code and pay the Solana entry fee using your Phantom wallet. 
-            The entry fee is locked securely in our smart contract escrow for the duration of the match.
+            Start by clicking <strong>Create Wallet</strong> to generate a free demo wallet instantly in your browser. You don't need Phantom or any real crypto! 
+            Upon creation, you will automatically be airdropped <strong style={{ color: 'var(--gd)' }}>100.00 PULSE</strong> tokens to play with.
           </p>
         </section>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>2. Make Your Predictions</h2>
+          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>2. Lock Your Picks (Additive Point System)</h2>
           <p style={{ lineHeight: '1.6' }}>
-            Before a match begins, you can predict the outcomes of various "Flash Markets" (e.g., Who will score next? Will there be a red card?).
-            Each prediction has associated odds. 
+            Before matches begin, use your PULSE tokens to lock in predictions. Instead of traditional parlays where one loss destroys your slip, TxLINE Pulse uses a forgiving <strong>Additive Point System</strong>.
           </p>
           <ul style={{ marginTop: '12px', paddingLeft: '20px', lineHeight: '1.6' }}>
-            <li style={{ marginBottom: '8px' }}><strong style={{ color: 'var(--gd)' }}>Winning a Pick:</strong> You earn positive points equal to the odds (e.g., +2.50 pts).</li>
-            <li style={{ marginBottom: '8px' }}><strong style={{ color: '#ff4444' }}>Losing a Pick:</strong> You lose points equal to the odds (e.g., -2.50 pts).</li>
-            <li style={{ marginBottom: '8px' }}><strong style={{ color: 'var(--tm2)' }}>Pending Picks:</strong> Do not affect your score until the event occurs or the match ends.</li>
+            <li style={{ marginBottom: '8px' }}><strong style={{ color: 'var(--gd)' }}>Winning a Pick:</strong> Adds its odds to your match multiplier (e.g., +2.0).</li>
+            <li style={{ marginBottom: '8px' }}><strong style={{ color: '#ff4444' }}>Losing a Pick:</strong> Subtracts its odds from your match multiplier (e.g., -1.5).</li>
+            <li style={{ marginBottom: '8px' }}><strong style={{ color: 'var(--gd)' }}>Final Payout:</strong> If your final multiplier sum is positive, you win your wager multiplied by that sum! If it's zero or negative, you lose your wager.</li>
           </ul>
         </section>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>3. The Live Leaderboard</h2>
+          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>3. The Dynamic Live Leaderboard</h2>
           <p style={{ lineHeight: '1.6' }}>
-            As the match happens in real-time, the Telegram Bot and Web Live Chat will announce goals and events. 
-            Your predictions are instantly settled, and the Group Leaderboard will actively update your net points!
+            As the matches happen, our demo engine resolves outcomes in real-time. 
+            Your payouts are instantly credited to your global wallet balance.
+            Your total PULSE balance determines your exact rank on the Group Leaderboard, which dynamically updates live alongside the matches!
           </p>
         </section>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>🏆 4. Winning the Pool & Payouts</h2>
+          <h2 style={{ color: 'black', fontSize: '20px', marginBottom: '12px' }}>🏆 4. Winning the Pool</h2>
           <p style={{ lineHeight: '1.6' }}>
-            When the match officially concludes, the player(s) sitting at <strong>Rank #1</strong> on the leaderboard will take home the entire accumulated SOL Pool! 
-            The smart contract will automatically execute the payout directly to your Phantom wallet.
+            At the end of the tournament, the player sitting at <strong>Rank #1</strong> on the leaderboard takes the crown. Maintain the highest PULSE balance across your group to secure victory!
           </p>
         </section>
 
-        <section style={{ marginBottom: '32px', background: 'rgba(255, 68, 68, 0.05)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255, 68, 68, 0.2)' }}>
-          <h2 style={{ color: '#ff4444', fontSize: '20px', marginBottom: '12px' }}>🛡️ The 80% Safety Refund Protocol</h2>
-          <p style={{ lineHeight: '1.6', color: 'var(--tm2)' }}>
-            What happens if the match is extremely boring and <strong>NOBODY</strong> in your group scores a single positive point?
-            <br/><br/>
-            If the highest score on the leaderboard is exactly <strong style={{color: '#fff'}}>0.00 pts</strong> or lower at the end of the match, TxLINE's Safety Protocol kicks in.
-            Instead of giving the pool to someone who didn't win anything, <strong style={{color: '#fff'}}>80% of the entire pool is automatically refunded</strong> evenly back to all players in the group! 
-            (The remaining 20% is retained as the protocol fee).
-          </p>
-        </section>
 
         <section style={{ marginBottom: '32px', background: 'rgba(255, 193, 7, 0.1)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255, 193, 7, 0.4)' }}>
           <h2 style={{ color: '#ffb300', fontSize: '20px', marginBottom: '12px' }}>⚠️ Hackathon Disclaimer & Legal Notice</h2>

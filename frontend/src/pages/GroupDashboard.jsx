@@ -35,20 +35,30 @@ const GroupDashboard = () => {
           const lbRes = await fetch(`${API_URL}/api/leaderboard/${group.id}`);
           const lb = await lbRes.json();
           if (Array.isArray(lb)) {
-            const formatted = lb.map((entry, idx) => ({
-                rank: idx + 1,
-                user: entry.members.telegram_username,
-                addr: entry.members.wallet_address.substring(0,4) + '…' + entry.members.wallet_address.substring(entry.members.wallet_address.length - 4),
-                pts: entry.total_pts / 100,
-                rawAddr: entry.members.wallet_address
-            }));
+            const formatted = lb.map((entry, idx) => {
+                let livePts = entry.total_pts / 100;
+                if (entry.members && entry.members.balance !== null && entry.members.balance !== undefined) {
+                  livePts = parseFloat(entry.members.balance);
+                } else if (livePts === 0 && (!entry.matches_played || entry.matches_played === 0)) {
+                  // Auto-correct old users who joined before the init fix
+                  livePts = 100;
+                }
+                return {
+                  rank: idx + 1,
+                  user: entry.members?.telegram_username || 'Unknown',
+                  addr: entry.members?.wallet_address ? entry.members.wallet_address.substring(0,4) + '…' + entry.members.wallet_address.substring(entry.members.wallet_address.length - 4) : '',
+                  pts: livePts,
+                  rawAddr: entry.members?.wallet_address
+                };
+            });
             setLeaderboard(formatted);
           }
         }
 
         // 2. Fetch User Predictions
-        if (connected && publicKey) {
-          const predRes = await fetch(`${API_URL}/api/predictions/${id}/${publicKey.toString()}`);
+        let activeWallet = connected && publicKey ? publicKey.toString() : localStorage.getItem('guestWalletPubKey');
+        if (activeWallet) {
+          const predRes = await fetch(`${API_URL}/api/predictions/${id}/${activeWallet}`);
           const preds = await predRes.json();
           if (Array.isArray(preds)) setEscrows(preds);
         }
@@ -114,7 +124,6 @@ const GroupDashboard = () => {
             <span>Invite Code: <span style={{color: 'var(--gd)', marginLeft: '4px'}}>{id || 'LM79C3'}</span></span>
             <span>{copied ? '✅' : '📋'}</span>
           </div>
-          <div className="pool-pill">🏦 Pool: {groupData.entryFee} SOL</div>
         </div>
       </div>
       <div className="grid">
@@ -165,37 +174,42 @@ const GroupDashboard = () => {
             </div>
           </div>
           
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
-            <Link to={`/group/${id || 'LM79C3'}/predict`} className="btn-g" style={{
-              padding: '16px 40px', 
-              fontSize: '16px', 
-              fontWeight: 'bold',
-              textDecoration: 'none', 
-              boxShadow: '0 6px 20px rgba(234, 182, 49, 0.4)',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              borderRadius: '30px'
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(234, 182, 49, 0.6)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(234, 182, 49, 0.4)'; }}
-            >
-              MAKE PICKS <span style={{fontSize: '20px'}}>→</span>
-            </Link>
-          </div>
+          {escrows.length === 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '10px' }}>
+              <Link to={`/group/${id || 'LM79C3'}/predict`} className="btn-g" style={{
+                padding: '16px 40px', 
+                fontSize: '16px', 
+                fontWeight: 'bold',
+                textDecoration: 'none', 
+                boxShadow: '0 6px 20px rgba(234, 182, 49, 0.4)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                borderRadius: '30px'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(234, 182, 49, 0.6)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(234, 182, 49, 0.4)'; }}
+              >
+                MAKE PICKS <span style={{fontSize: '20px'}}>→</span>
+              </Link>
+            </div>
+          )}
         </div>
         <div className="sidebar">
           <div className="lb-card">
             <div className="lb-title">Live leaderboard</div>
-            {leaderboard.map((u) => (
-              <div className="lb-row" key={u.user}>
+            {leaderboard.map((u, i) => (
+              <div key={i} className={`lb-row ${u.rank === 1 ? 'lb-row-winner' : ''}`}>
                 <span className="lb-rank">#{u.rank}</span>
                 <div>
-                  <div className="lb-user">{u.rank === 1 && '🏆 '} {u.user} {publicKey && u.rawAddr === publicKey.toString() ? '(You)' : ''}</div>
+                  {(() => {
+                    let activeWallet = connected && publicKey ? publicKey.toString() : localStorage.getItem('guestWalletPubKey');
+                    return <div className="lb-user">{u.rank === 1 && '🏆 '} {u.user} {activeWallet && u.rawAddr === activeWallet ? '(You)' : ''}</div>;
+                  })()}
                   <div className="lb-addr">{u.addr}</div>
                 </div>
-                <span className="lb-pts">{Number(u.pts).toFixed(2)} pts</span>
+                <span className="lb-pts">{Number(u.pts).toFixed(2)} PULSE</span>
               </div>
             ))}
           </div>
@@ -211,12 +225,14 @@ const GroupDashboard = () => {
               <div>
                 <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--cr-dd)'}}>
                   <div className="e-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span>Active Tickets:</span>
+                    <span>Active Slips:</span>
                     <strong style={{ color: 'var(--tm)' }}>{escrows.length}</strong>
                   </div>
                   <div className="e-row" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Total Pool Escrowed:</span>
-                    <strong style={{ color: 'var(--gd)' }}>{(escrows.length * groupData.entryFee).toFixed(2)} SOL</strong>
+                    <span>Total Wagered:</span>
+                    <strong style={{ color: 'var(--gd)' }}>
+                      {escrows.reduce((sum, esc) => sum + (esc.wager_amount || 0), 0).toFixed(2)} PULSE
+                    </strong>
                   </div>
                 </div>
                 

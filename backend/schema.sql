@@ -7,7 +7,6 @@ CREATE TABLE groups (
   invite_code TEXT UNIQUE NOT NULL,
   created_by TEXT NOT NULL, -- Solana Wallet Address
   chat_id BIGINT, -- Telegram group chat id
-  entry_fee NUMERIC DEFAULT 0, -- Optional SOL entry fee
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -17,6 +16,7 @@ CREATE TABLE members (
   group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
   wallet_address TEXT NOT NULL,
   telegram_username TEXT,
+  balance NUMERIC DEFAULT 100,
   joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -38,6 +38,7 @@ CREATE TABLE predictions (
   match_id UUID REFERENCES matches(id) ON DELETE CASCADE,
   picks JSONB NOT NULL, -- Array of objects: { market: "result", selection: "Home Win", odds: 2.10, status: "pending", points_awarded: 0 }
   net_points NUMERIC DEFAULT 0,
+  wager_amount NUMERIC DEFAULT 0,
   tx_signature TEXT UNIQUE, -- Stores the Solana transaction signature
   submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   locked BOOLEAN DEFAULT false

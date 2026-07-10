@@ -10,12 +10,13 @@ const PredictMatch = () => {
   const [modalConfig, setModalConfig] = useState({ isOpen: false, type: '', title: '', desc: '', action: null });
   
   const [entryFee, setEntryFee] = useState(0.1);
-  const [matches, setMatches] = useState([]);
   const [existingPredictions, setExistingPredictions] = useState([]);
   
-  // State is now an object keyed by match txline_id
-  const [picks, setPicks] = useState({});
+  const [matches, setMatches] = useState([]);
   const [oddsMap, setOddsMap] = useState({});
+  const [picks, setPicks] = useState({});
+  const [wagerAmount, setWagerAmount] = useState(10);
+  const [loading, setLoading] = useState(true);
   const [expandedIndex, setExpandedIndex] = useState(0);
 
   const defaultOdds = {
@@ -39,9 +40,11 @@ const PredictMatch = () => {
       })
       .catch(() => {});
       
+    let activeWallet = connected && publicKey ? publicKey.toString() : localStorage.getItem('guestWalletPubKey');
+    
     // Fetch User Predictions to filter out already picked matches
-    if (connected && publicKey) {
-      fetch(`${API_URL}/api/predictions/${id}/${publicKey.toString()}`)
+    if (activeWallet) {
+      fetch(`${API_URL}/api/predictions/${id}/${activeWallet}`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) {
@@ -66,37 +69,63 @@ const PredictMatch = () => {
             });
             setOddsMap(newOdds);
             setPicks(newPicks);
+            setLoading(false);
          }
       })
       .catch(() => {});
   }, [id, connected, publicKey]);
 
   const handlePick = (matchId, group, value) => {
-    setPicks(prev => ({
-      ...prev,
-      [matchId]: {
-        ...prev[matchId],
-        [group]: value
+    setPicks(prev => {
+      if (prev[matchId] && prev[matchId][group] === value) {
+        const newMatchPicks = { ...prev[matchId] };
+        delete newMatchPicks[group];
+        return {
+          ...prev,
+          [matchId]: newMatchPicks
+        };
       }
-    }));
+      return {
+        ...prev,
+        [matchId]: {
+          ...prev[matchId],
+          [group]: value
+        }
+      };
+    });
   };
 
-  let totalPos = 0;
-  Object.keys(picks).forEach(matchId => {
-     const p = picks[matchId];
-     const o = oddsMap[matchId];
-     if (p && o) {
-       if (p.result) totalPos += o[p.result] || 0;
-       if (p.btts) totalPos += o[p.btts] || 0;
-       if (p.goals) totalPos += o[p.goals] || 0;
-       if (p.scorer) totalPos += o[p.scorer] || 0;
-     }
+  let totalPotentialReturn = 0;
+  let hasPicks = false;
+
+  const activeMatchIds = Object.keys(picks).filter(matchId => {
+    const p = picks[matchId];
+    return p && (p.result || p.btts || p.goals || p.scorer);
   });
 
+  if (activeMatchIds.length > 0) {
+    const wagerPerMatch = wagerAmount / activeMatchIds.length;
+    activeMatchIds.forEach(matchId => {
+      const p = picks[matchId];
+      const o = oddsMap[matchId];
+      let matchOdds = 0;
+      if (p.result) matchOdds += (o[p.result] || 0);
+      if (p.btts) matchOdds += (o[p.btts] || 0);
+      if (p.goals) matchOdds += (o[p.goals] || 0);
+      if (p.scorer) matchOdds += (o[p.scorer] || 0);
+      
+      totalPotentialReturn += (wagerPerMatch * matchOdds);
+      hasPicks = true;
+    });
+  }
+
+  const potentialReturn = totalPotentialReturn;
+
   const handlePay = async () => {
-    if (!connected) {
-      setModalConfig({ isOpen: true, type: 'error', title: 'Wallet Not Connected', desc: 'Please connect your wallet first!' });
-      return;
+    let activeWallet = connected && publicKey ? publicKey.toString() : localStorage.getItem('guestWalletPubKey');
+    if (!activeWallet && !connected) {
+      activeWallet = 'GUEST_' + Math.random().toString(36).substring(2, 10).toUpperCase();
+      localStorage.setItem('guestWalletPubKey', activeWallet);
     }
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -115,7 +144,7 @@ const PredictMatch = () => {
     try {
       // Submit sequentially
       for (const matchId of matchesToSubmit) {
-        const fakeSig = Math.random().toString(36).substring(2, 6).toUpperCase() + '…' + Math.random().toString(36).substring(2, 6).toUpperCase();
+        let txSig = 'mock-sig-' + Math.random().toString(36).substring(2, 10);
         
         const p = picks[matchId];
         const o = oddsMap[matchId];
@@ -126,15 +155,18 @@ const PredictMatch = () => {
         if (p.goals) picksArray.push({ market: 'goals', selection: p.goals, odds: o[p.goals] || 0, status: 'pending', points_awarded: 0 });
         if (p.scorer) picksArray.push({ market: 'scorer', selection: p.scorer, odds: o[p.scorer] || 0, status: 'pending', points_awarded: 0 });
 
+        const splitWager = parseFloat((wagerAmount / matchesToSubmit.length).toFixed(2));
+
         const res = await fetch(`${API_URL}/api/predictions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            wallet_address: publicKey.toString(),
-            group_invite_code: id,
+            wallet_address: activeWallet,
+            group_invite_code: id || 'LM79C3',
             match_id: matchId,
             picks: picksArray,
-            tx_signature: fakeSig
+            wager_amount: splitWager,
+            tx_signature: txSig
           })
         });
 
@@ -148,7 +180,7 @@ const PredictMatch = () => {
         isOpen: true, 
         type: 'success', 
         title: 'Success!', 
-        desc: `Successfully locked in your parlay across ${matchesToSubmit.length} matches for ${entryFee} SOL!`,
+        desc: `Successfully locked in your parlay across ${matchesToSubmit.length} matches for ${wagerAmount} PULSE!`,
         action: () => navigate(`/group/${id || 'LM79C3'}`)
       });
     } catch (err) {
@@ -309,14 +341,14 @@ const PredictMatch = () => {
           <div className="bs-deco2"></div>
           <div className="bs-title">⚽ Master prediction slip</div>
           <div className="bs-row">
-            <span className="bs-lbl">Potential max points</span>
-            <span className="pts-pos">+{totalPos.toFixed(2)} pts</span>
+            <span className="bs-lbl">Wager Amount (PULSE)</span>
+            <input type="number" value={wagerAmount} onChange={(e) => setWagerAmount(Number(e.target.value))} style={{width: '80px', textAlign: 'right', background: 'var(--gr-dk)', border: '1px solid var(--cr-dd)', color: '#fff', borderRadius: '4px', padding: '4px 8px'}} min="1" />
           </div>
           <div className="bs-row">
-            <span className="bs-lbl">Potential max loss</span>
-            <span className="pts-neg">−{totalPos.toFixed(2)} pts</span>
+            <span className="bs-lbl">Total Potential Return</span>
+            <span className="pts-pos" style={{fontSize: '18px', fontWeight: 'bold'}}>+{potentialReturn.toFixed(2)} PULSE</span>
           </div>
-          <button className="pay-btn" onClick={handlePay}>🔒 Pay {entryFee} SOL and lock parlay</button>
+          <button className="pay-btn" onClick={handlePay} disabled={!hasPicks || wagerAmount <= 0}>🔒 Lock Parlay ({wagerAmount} PULSE)</button>
           <Link to={`/group/${id || 'LM79C3'}`} className="cancel-lnk">Cancel and go back</Link>
         </div>
       </div>

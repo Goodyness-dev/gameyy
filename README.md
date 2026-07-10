@@ -42,8 +42,14 @@ The Telegram bot is built using `Telegraf.js`.
 ### 4. TxLINE Integration (`backend/txline.js`)
 Our system interfaces with TxLINE's Free Tier API.
 - We authenticate using a Guest Session JWT and an activated API token.
-- We poll `/api/fixtures/snapshot` for match schedules and odds.
-- For live matches, we act as a polling consumer, translating TxLINE's rich data structures into our simplified schema (`Home Win`, `Over 2.5`, etc.).
+- We act as a polling consumer, translating TxLINE's rich data structures into our simplified schema (`Home Win`, `Over 2.5`, etc.).
+
+**TxLINE Endpoints Used:**
+- `POST /auth/guest/start`: Generates a Guest JWT to start the session.
+- `POST /api/token/activate`: Activates the API token after the on-chain Solana subscription is verified.
+- `GET /api/fixtures/snapshot`: Retrieves a snapshot of all upcoming matches (futures) to populate the prediction dashboard.
+- `GET /api/odds/snapshot/{fixtureId}`: Fetches pre-match point multipliers (odds) for a specific match to calculate potential points.
+- `GET /api/scores/snapshot/{fixtureId}`: Polled continuously during a match to receive live match events (goals, scores) and trigger our backend engine.
 
 ---
 

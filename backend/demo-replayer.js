@@ -65,9 +65,13 @@ export const runDemo = async () => {
   // Custom events for Brazil vs Spain
   const events2 = [
     { type: 'kickoff', minute: 1 },
-    { type: 'goal', minute: 40, scorer: 'vinicius', score: { home: 1, away: 0 }, ruined_users: [] },
+    { type: 'goal', minute: 15, scorer: 'Lamine Yamal', score: { home: 0, away: 1 }, ruined_users: [] },
+    { type: 'goal', minute: 40, scorer: 'Vinicius Jr', score: { home: 1, away: 1 }, ruined_users: [] },
     { type: 'half_time', minute: 45 },
-    { type: 'goal', minute: 90, scorer: 'morata', score: { home: 1, away: 1 }, ruined_users: [] },
+    { type: 'var_check', minute: 60, description: "Possible Penalty for Brazil" },
+    { type: 'var_result', minute: 62, result: "penalty_given" },
+    { type: 'goal', minute: 63, scorer: 'Rodrygo', score: { home: 2, away: 1 }, ruined_users: [] },
+    { type: 'goal', minute: 90, scorer: 'Alvaro Morata', score: { home: 2, away: 2 }, ruined_users: [] },
     { type: 'match_end', minute: 90 }
   ];
 

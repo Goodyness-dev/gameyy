@@ -12,9 +12,10 @@ const JoinGroup = () => {
     e.preventDefault();
     if (!groupCode || !groupCode.trim()) return;
     
-    if (!connected) {
-      setError('Wallet not connected');
-      return;
+    let activeWallet = connected && publicKey ? publicKey.toString() : localStorage.getItem('guestWalletPubKey');
+    if (!activeWallet && !connected) {
+      activeWallet = 'GUEST_' + Math.random().toString(36).substring(2, 10).toUpperCase();
+      localStorage.setItem('guestWalletPubKey', activeWallet);
     }
 
     try {
@@ -24,8 +25,8 @@ const JoinGroup = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           invite_code: groupCode.trim(),
-          wallet_address: publicKey.toString(),
-          telegram_username: `@${publicKey.toString().substring(0,5)}` // Demo mock
+          wallet_address: activeWallet,
+          telegram_username: `@${activeWallet.substring(0,8)}` // Demo mock
         })
       });
 

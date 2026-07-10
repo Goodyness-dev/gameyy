@@ -1,5 +1,6 @@
 import { supabase } from './db.js';
-import { Connection, Keypair, SystemProgram, Transaction, PublicKey, sendAndConfirmTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { getOrCreateAssociatedTokenAccount, mintTo } from '@solana/spl-token';
 import bs58 from 'bs58';
 import { broadcastWinner } from './bot.js';
 
@@ -67,113 +68,78 @@ const executePayouts = async (matchId) => {
 
   const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
-  // 1. Fetch all predictions for this match to identify groups
+  // 1. Fetch all predictions for this match
   const { data: predictions } = await supabase
     .from('predictions')
-    .select('member_id, members(group_id, wallet_address, groups(entry_fee))')
+    .select('id, member_id, picks, wager_amount, members(wallet_address, balance, group_id, telegram_username)')
     .eq('match_id', matchId);
 
   if (!predictions || predictions.length === 0) return;
 
-  // 2. Group by group_id
-  const groups = {};
-  predictions.forEach(p => {
-    const gId = p.members.group_id;
-    if (!groups[gId]) {
-      groups[gId] = { pool: 0, members: [], entry_fee: parseFloat(p.members.groups.entry_fee || 0) };
-    }
-    groups[gId].pool += parseFloat(p.members.groups.entry_fee || 0);
-    groups[gId].members.push({ id: p.member_id, wallet: p.members.wallet_address });
-  });
+  const mintAddress = process.env.PULSE_TOKEN_MINT;
+  if (!mintAddress) {
+     console.log('[ESCROW] ❌ No PULSE_TOKEN_MINT found in .env');
+     return;
+  }
+  const mintPubkey = new PublicKey(mintAddress);
 
-  // 3. For each group, find the winner(s) and pay them out
-  for (const [groupId, groupData] of Object.entries(groups)) {
-    if (groupData.pool <= 0) continue;
+  // 2. Evaluate winners and pay out
+  for (const pred of predictions) {
+    if (!pred.picks || !pred.wager_amount) continue;
 
-    const { data: lb } = await supabase
-      .from('leaderboard')
-      .select('member_id, total_pts, members(wallet_address)')
-      .eq('group_id', groupId)
-      .order('total_pts', { ascending: false });
+    let totalOdds = 0;
+    let allResolved = true;
 
-    if (!lb || lb.length === 0) continue;
-
-    const topScore = parseFloat(lb[0].total_pts) / 100;
-    let payoutsToMake = [];
-
-    if (topScore <= 0) {
-      console.log(`[ESCROW] Group ${groupId}: Nobody won! (Top score is ${topScore}). Activating 80/20 refund logic.`);
-      const refundAmount = groupData.entry_fee * 0.8;
-      
-      // Everyone gets 80% back
-      for (const member of groupData.members) {
-         payoutsToMake.push({ wallet: member.wallet, amount: refundAmount, reason: '80% Refund' });
+    for (const p of pred.picks) {
+      if (p.status === 'pending') {
+        allResolved = false;
+      } else if (p.status === 'won') {
+        totalOdds += parseFloat(p.odds);
+      } else if (p.status === 'lost') {
+        totalOdds -= parseFloat(p.odds);
       }
-      console.log(`[ESCROW] Retaining 20% (${groupData.entry_fee * 0.2 * groupData.members.length} SOL) as protocol profit. 🤑`);
+    }
 
+    // Only payout if all picks are resolved and the total odds sum is positive
+    if (allResolved && totalOdds > 0) {
+       const payoutAmount = pred.wager_amount * totalOdds;
+       console.log(`[ESCROW] Winner found! ${pred.members.wallet_address} won ${payoutAmount.toFixed(2)} PULSE`);
+
+       try {
+         const userPubkey = new PublicKey(pred.members.wallet_address);
+         const userAta = await getOrCreateAssociatedTokenAccount(
+           connection,
+           treasuryKeypair,
+           mintPubkey,
+           userPubkey
+         );
+
+         // Mint winnings to user
+         const signature = await mintTo(
+           connection,
+           treasuryKeypair,
+           mintPubkey,
+           userAta.address,
+           treasuryKeypair.publicKey,
+           Math.floor(payoutAmount * 100) // 2 decimals
+         );
+         
+         console.log(`✅ [SUCCESS] Tokens minted! Sig: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+
+         // Update DB balance
+         const currentBalance = parseFloat(pred.members.balance || 0);
+         await supabase.from('members').update({ balance: currentBalance + payoutAmount }).eq('id', pred.member_id);
+
+         // Broadcast
+         const { data: groupData } = await supabase.from('groups').select('chat_id').eq('id', pred.members.group_id).single();
+         if (groupData?.chat_id) {
+           await broadcastWinner(groupData.chat_id, "The Match", [pred.members.telegram_username], payoutAmount);
+         }
+       } catch (err) {
+         console.error(`❌ [ERROR] Failed to mint payout to ${pred.members.wallet_address}:`, err.message);
+       }
     } else {
-      const winners = lb.filter(entry => (parseFloat(entry.total_pts) / 100) === topScore);
-      const payoutPerWinner = groupData.pool / winners.length;
-      console.log(`[ESCROW] Group ${groupId}: Total Pool ${groupData.pool} SOL. Winners: ${winners.length}. Payout: ${payoutPerWinner} SOL each.`);
-
-      for (const winner of winners) {
-         payoutsToMake.push({ wallet: winner.members.wallet_address, amount: payoutPerWinner, reason: 'Winner Payout' });
-      }
-    }
-
-    // Execute the transactions on Solana
-    for (const payout of payoutsToMake) {
-      try {
-        console.log(`[ESCROW TRANSACTION] Sending ${payout.amount} SOL to wallet ${payout.wallet}... (${payout.reason})`);
-        
-        const toPubkey = new PublicKey(payout.wallet);
-        const lamports = Math.floor(payout.amount * LAMPORTS_PER_SOL);
-
-        const transaction = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: treasuryKeypair.publicKey,
-            toPubkey,
-            lamports,
-          })
-        );
-
-        const signature = await sendAndConfirmTransaction(connection, transaction, [treasuryKeypair]);
-        console.log(`✅ [SUCCESS] Transaction confirmed! Signature: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
-        payout.signature = signature;
-      } catch (err) {
-        console.error(`❌ [ERROR] Failed to send payout to ${payout.wallet}:`, err.message);
-      }
-    }
-    
-    // Broadcast winner announcement
-    const { data: groupDataFromDb } = await supabase.from('groups').select('chat_id').eq('id', groupId).single();
-    const chatId = groupDataFromDb?.chat_id;
-    if (chatId) {
-      if (topScore <= 0) {
-        await broadcastWinner(chatId, "The Match", [], 0);
-      } else {
-        // Find winner usernames
-        const { data: winnerMembers } = await supabase
-          .from('members')
-          .select('id, user_id')
-          .in('id', lb.filter(entry => (parseFloat(entry.total_pts) / 100) === topScore).map(w => w.member_id));
-          
-        const winnerNames = winnerMembers ? winnerMembers.map(w => w.user_id) : [];
-        const payoutPerWinner = groupData.pool / winnerNames.length;
-        await broadcastWinner(chatId, "The Match", winnerNames, payoutPerWinner);
-      }
-    }
-    
-    if (payoutsToMake.some(p => p.signature)) {
-      const { data: matchObj } = await supabase.from('matches').select('result').eq('id', matchId).single();
-      const resData = matchObj?.result || {};
-      resData.payouts = resData.payouts || {};
-      
-      const sigsForGroup = payoutsToMake.filter(p => p.signature).map(p => p.signature);
-      if (sigsForGroup.length > 0) {
-        resData.payouts[groupId] = sigsForGroup[0]; // just grab the first valid signature for the group to link to
-      }
-      await supabase.from('matches').update({ result: resData }).eq('id', matchId);
+       console.log(`[ESCROW] Prediction ${pred.id} lost or still pending.`);
     }
   }
 };
@@ -237,26 +203,12 @@ const recalculateLeaderboards = async (matchId) => {
 
   const memberIds = Object.keys(memberGroups);
 
-  // Then, fetch ALL predictions for these members across ALL matches to sum their true total points
-  const { data: allPredictions } = await supabase
-    .from('predictions')
-    .select('member_id, net_points')
-    .in('member_id', memberIds);
-
-  const memberPoints = {};
-  memberIds.forEach(id => memberPoints[id] = 0);
-
-  if (allPredictions) {
-    allPredictions.forEach(p => {
-      memberPoints[p.member_id] += (p.net_points || 0);
-    });
-  }
-
-  // Update the leaderboard with the true total sum
+  // Then, fetch the balances directly from members table
   for (const memberId of memberIds) {
+    const { data: m } = await supabase.from('members').select('balance').eq('id', memberId).single();
     await supabase
       .from('leaderboard')
-      .update({ total_pts: Math.round(memberPoints[memberId] * 100) })
+      .update({ total_pts: Math.round((parseFloat(m.balance) || 0) * 100) })
       .eq('member_id', memberId)
       .eq('group_id', memberGroups[memberId]);
   }

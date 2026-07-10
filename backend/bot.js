@@ -1,6 +1,9 @@
 import { Telegraf, Markup } from 'telegraf';
 import axios from 'axios';
 import { supabase } from './db.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { getOrCreateAssociatedTokenAccount, mintTo } from '@solana/spl-token';
+import bs58 from 'bs58';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -202,19 +205,58 @@ export const resolveFlashMarket = async (chatId, event, matchId) => {
   
   const winners = [];
   const losers = [];
+  const winnerUsernames = [];
   
   for (const [user, choice] of Object.entries(flashBets)) {
     if (choice === winningChoice) {
       winners.push(`@${user}`);
-      // In a real app, update DB points here via engine.js
+      winnerUsernames.push(`@${user}`);
     } else {
       losers.push(`@${user}`);
-      // In a real app, update DB points here via engine.js
     }
   }
   
-  if (winners.length > 0) resultMsg += `✅ Winners (+5 pts): ${winners.join(', ')}\n`;
-  if (losers.length > 0) resultMsg += `❌ Losers (-5 pts): ${losers.join(', ')}\n`;
+  if (winners.length > 0) {
+    resultMsg += `✅ Winners (+10 PULSE): ${winners.join(', ')}\n`;
+    
+    // Execute PULSE token mints for winners
+    try {
+      const privateKeyString = process.env.TREASURY_PRIVATE_KEY;
+      const mintAddress = process.env.PULSE_TOKEN_MINT;
+      
+      if (privateKeyString && mintAddress) {
+        const treasuryKeypair = Keypair.fromSecretKey(bs58.decode(privateKeyString));
+        const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+        const mintPubkey = new PublicKey(mintAddress);
+
+        const { data: memberData } = await supabase.from('members').select('id, wallet_address, balance, telegram_username').in('telegram_username', winnerUsernames);
+        
+        if (memberData && memberData.length > 0) {
+          for (const m of memberData) {
+            try {
+              const userPubkey = new PublicKey(m.wallet_address);
+              const userAta = await getOrCreateAssociatedTokenAccount(
+                connection, treasuryKeypair, mintPubkey, userPubkey, true, 'confirmed'
+              );
+              await mintTo(
+                connection, treasuryKeypair, mintPubkey, userAta.address, treasuryKeypair.publicKey, 1000 // 10 PULSE * 10^2
+              );
+              const newBalance = parseFloat(m.balance || 0) + 10;
+              await supabase.from('members').update({ balance: newBalance }).eq('id', m.id);
+              // Leaderboard sync will happen automatically on next engine loop, or we could update it here.
+              await supabase.from('leaderboard').update({ total_pts: newBalance * 100 }).eq('member_id', m.id);
+            } catch (err) {
+              console.error(`[FLASH ERROR] Failed to mint to ${m.wallet_address}:`, err.message);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[FLASH ERROR] Payout execution failed:", e.message);
+    }
+  }
+  
+  if (losers.length > 0) resultMsg += `❌ Losers (Missed out on 10 PULSE): ${losers.join(', ')}\n`;
   if (winners.length === 0 && losers.length === 0) resultMsg += `Nobody made a prediction!`;
 
   // Clear bets

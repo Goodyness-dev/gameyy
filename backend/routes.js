@@ -2,7 +2,9 @@ import express from 'express';
 import { supabase } from './db.js';
 import { getMatches, getMatchById, getMatchOdds } from './txline.js';
 import { handleGoalEvent, handleMatchEnd } from './engine.js';
-import { Connection } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { getOrCreateAssociatedTokenAccount, mintTo } from '@solana/spl-token';
+import bs58 from 'bs58';
 import * as googleTTS from 'google-tts-api';
 import axios from 'axios';
 
@@ -76,6 +78,9 @@ router.get('/matches/:id', async (req, res) => {
  */
 router.post('/groups/create', async (req, res) => {
   const { name, created_by, entry_fee, chat_id } = req.body;
+  
+  if (!created_by) return res.status(400).json({ error: 'Create Wallet first' });
+  
   const invite_code = Math.random().toString(36).substring(2, 8).toUpperCase();
   
   const { data, error } = await supabase
@@ -104,11 +109,39 @@ router.get('/groups/:invite_code', async (req, res) => {
 });
 
 /**
+ * @route GET /api/groups/my-groups/:wallet_address
+ * @desc Fetch all groups a user has joined
+ */
+router.get('/groups/my-groups/:wallet_address', async (req, res) => {
+  const { wallet_address } = req.params;
+  const { data, error } = await supabase
+    .from('members')
+    .select('group_id, groups!inner(name, invite_code)')
+    .eq('wallet_address', wallet_address)
+    .order('joined_at', { ascending: false });
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  // Flatten the response
+  const groups = data.map(m => ({
+    id: m.group_id,
+    name: m.groups.name,
+    invite_code: m.groups.invite_code
+  }));
+
+  res.json(groups);
+});
+
+/**
  * @route POST /api/groups/join
  * @desc Join a group with an invite code
  */
 router.post('/groups/join', async (req, res) => {
   const { invite_code, wallet_address, telegram_username } = req.body;
+  
+  if (!wallet_address) return res.status(400).json({ error: 'Create Wallet first' });
 
   // 1. Find group
   const { data: group, error: groupError } = await supabase
@@ -141,9 +174,89 @@ router.post('/groups/join', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   
   // 4. Initialize leaderboard entry
-  await supabase.from('leaderboard').insert([{ group_id: group.id, member_id: data.id }]);
+  await supabase.from('leaderboard').insert([{ group_id: group.id, member_id: data.id, total_pts: 10000 }]);
 
   res.json({ message: 'Joined successfully', member: data });
+});
+
+/**
+ * @route POST /api/wallet/airdrop
+ * @desc Mint 100 PULSE tokens to a new wallet
+ */
+router.post('/wallet/airdrop', async (req, res) => {
+  const { wallet_address } = req.body;
+  const mintAddress = process.env.PULSE_TOKEN_MINT;
+  const privateKeyString = process.env.TREASURY_PRIVATE_KEY;
+  
+  if (!mintAddress || !privateKeyString || !wallet_address) {
+    return res.status(400).json({ error: 'Missing airdrop configuration or wallet address' });
+  }
+
+  try {
+    const treasuryKeypair = Keypair.fromSecretKey(bs58.decode(privateKeyString));
+    const userPubkey = new PublicKey(wallet_address);
+    const mintPubkey = new PublicKey(mintAddress);
+    
+    // Create ATA for user
+    const userAta = await getOrCreateAssociatedTokenAccount(
+      connection,
+      treasuryKeypair, // payer
+      mintPubkey,
+      userPubkey,
+      true,
+      'confirmed'
+    );
+
+    // Mint 100 tokens (with 2 decimals, so 10000)
+    const txSig = await mintTo(
+      connection,
+      treasuryKeypair,
+      mintPubkey,
+      userAta.address,
+      treasuryKeypair.publicKey, // mint authority
+      10000 // 100.00
+    );
+
+    console.log(`[AIRDROP] Minted 100 PULSE to ${wallet_address} - Sig: ${txSig}`);
+    res.json({ success: true, txSig });
+  } catch (err) {
+    console.error("[AIRDROP ERROR]", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * @route GET /api/wallet/:wallet_address/balance
+ * @desc Get the live balance of a wallet from the DB
+ */
+router.get('/wallet/:wallet_address/balance', async (req, res) => {
+  const { wallet_address } = req.params;
+  const { inviteCode } = req.query;
+
+  let groupId = null;
+  if (inviteCode) {
+    const { data: g } = await supabase.from('groups').select('id').eq('invite_code', inviteCode).single();
+    if (g) groupId = g.id;
+  }
+
+  let query = supabase
+    .from('members')
+    .select('balance')
+    .eq('wallet_address', wallet_address)
+    .order('balance', { ascending: true })
+    .limit(1);
+
+  if (groupId) {
+    query = query.eq('group_id', groupId);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error || !data) {
+    return res.json({ balance: 100 }); // Default fallback for uninitialized
+  }
+  
+  res.json({ balance: parseFloat(data.balance || 100) });
 });
 
 /**
@@ -151,7 +264,7 @@ router.post('/groups/join', async (req, res) => {
  * @desc Submit predictions for a match
  */
 router.post('/predictions', async (req, res) => {
-  const { wallet_address, group_invite_code, match_id, picks, tx_signature } = req.body;
+  const { wallet_address, group_invite_code, match_id, picks, tx_signature, wager_amount } = req.body;
 
   // 1. Verify Transaction on Solana Devnet
   if (tx_signature && tx_signature.length > 50) {
@@ -194,7 +307,7 @@ router.post('/predictions', async (req, res) => {
       if (memberError) throw new Error("Member Error: " + memberError.message);
       memberId = newMember.id;
       // Init leaderboard
-      await supabase.from('leaderboard').insert([{ group_id: groupId, member_id: memberId }]);
+      await supabase.from('leaderboard').insert([{ group_id: groupId, member_id: memberId, total_pts: 10000 }]);
     }
 
     // 4. Auto-Resolve Match UUID
@@ -223,13 +336,25 @@ router.post('/predictions', async (req, res) => {
       realMatchId = matchData.id;
     }
 
-    // 5. Save Prediction with real UUIDs
+    // 5. Check Balance, Deduct Wager, and Save Prediction
+    const { data: memberData } = await supabase.from('members').select('balance').eq('id', memberId).single();
+    const currentBalance = parseFloat(memberData?.balance || 100);
+    const wager = parseFloat(wager_amount || 0);
+
+    if (currentBalance < wager) throw new Error("Insufficient PULSE points balance");
+
+    await supabase.from('members').update({ balance: currentBalance - wager }).eq('id', memberId);
+    
+    // Sync leaderboard instantly
+    await supabase.from('leaderboard').update({ total_pts: (currentBalance - wager) * 100 }).eq('member_id', memberId).eq('group_id', groupId);
+
     const { data, error } = await supabase
       .from('predictions')
       .insert([{ 
         member_id: memberId, 
         match_id: realMatchId, 
         picks, 
+        wager_amount: wager,
         tx_signature
       }])
       .select()
@@ -256,7 +381,8 @@ router.get('/leaderboard/:groupId', async (req, res) => {
       matches_played,
       members (
         wallet_address,
-        telegram_username
+        telegram_username,
+        balance
       )
     `)
     .eq('group_id', groupId)
@@ -288,6 +414,7 @@ router.get('/predictions/:inviteCode/:walletAddress', async (req, res) => {
       .select(`
         id,
         picks,
+        wager_amount,
         tx_signature,
         status:locked,
         matches (
@@ -313,10 +440,10 @@ router.get('/predictions/:inviteCode/:walletAddress', async (req, res) => {
       return {
         matchId: p.matches.txline_id,
         match: `${p.matches.home_team} vs ${p.matches.away_team}`,
-        status: p.status ? 'Locked' : 'Pending',
         picks: p.picks,
-        fee: group.entry_fee,
-        sig: p.tx_signature || 'N/A'
+        wager_amount: p.wager_amount,
+        sig: p.tx_signature,
+        matchStatus: p.status ? 'completed' : 'live'
       };
     });
 
