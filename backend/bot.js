@@ -68,12 +68,15 @@ const generateGoalAudio = async (script) => {
   const apiKey = process.env.ELEVEN_LABS_KEY;
   const voiceId = process.env.ELEVEN_LABS_VOICE_ID || 'pNInz6obbfDQGcgMyIGb'; // Default Adam voice
 
+  // Remove emojis from the text that will be spoken
+  const speechText = script.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
+
   // For local development/testing without burning credits, return a local mock file
   if (!apiKey || apiKey === 'your_elevenlabs_key') {
-    console.log('[TTS MOCK] Playing mock audio for script:', script);
+    console.log('[TTS MOCK] Playing mock audio for script:', speechText);
     try {
       // Use Google TTS to get a free audio URL of the text
-      const url = googleTTS.getAudioUrl(script, {
+      const url = googleTTS.getAudioUrl(speechText, {
         lang: 'en',
         slow: false,
         host: 'https://translate.google.com',
@@ -81,7 +84,7 @@ const generateGoalAudio = async (script) => {
       
       return { 
         url: url, // For Telegram
-        webUrl: `http://localhost:3000/api/tts?text=${encodeURIComponent(script)}` // For Web
+        webUrl: `http://localhost:3000/api/tts?text=${encodeURIComponent(speechText)}` // For Web
       };
     } catch(e) {
       // Fallback to cheering if text is too long or errors
@@ -93,7 +96,7 @@ const generateGoalAudio = async (script) => {
     const response = await axios.post(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
-        text: script,
+        text: speechText,
         model_id: 'eleven_monolingual_v1',
         voice_settings: { stability: 0.4, similarity_boost: 0.8 }
       },

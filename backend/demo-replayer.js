@@ -77,9 +77,17 @@ export const runDemo = async () => {
 
   // Run them concurrently using Promise.all
   const simulateMatch = async (events, realMatchId, name) => {
+    let currentMinute = 0;
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
-      await delay(10000); 
+      
+      const minuteDiff = event.minute - currentMinute;
+      if (minuteDiff > 0) {
+        await delay(minuteDiff * 500); // 0.5 seconds per match minute
+        currentMinute = event.minute;
+      } else {
+        await delay(500); // Small delay for concurrent events in the same minute
+      }
 
       console.log(`\n[${name} - MINUTE ${event.minute}] Event: ${event.type.toUpperCase()}`);
 
