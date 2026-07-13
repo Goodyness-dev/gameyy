@@ -282,20 +282,14 @@ export const broadcastWinner = async (chatId, matchName, winners, payout) => {
     ? `🏁 FULL TIME! ${matchName} is over! 🏆 Congratulations to our winner${winners.length > 1 ? 's' : ''}: ${winners.join(', ')}! You won ${payout.toFixed(2)} PULSE!`
     : `🏁 FULL TIME! ${matchName} is over! Sadly, nobody scored any points. 80% of the pool has been refunded to all players. Better luck next time!`;
 
-  const audio = await generateGoalAudio(script);
-
   globalEvents.emit('chat_message', {
     text: script,
-    audioUrl: audio?.webUrl || audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
+    audioUrl: null,
     timestamp: new Date().toISOString()
   });
 
   try {
     await bot.telegram.sendMessage(chatId, `🏆 ${script}`);
-    if (audio) {
-      if (audio.source) await bot.telegram.sendVoice(chatId, audio);
-      else if (audio.url) await bot.telegram.sendVoice(chatId, { url: audio.url });
-    }
   } catch (e) { console.log("Bot winner broadcast failed"); }
 };
 

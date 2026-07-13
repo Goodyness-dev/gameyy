@@ -37,8 +37,14 @@ const LiveChat = () => {
       
       if (data.type === 'chat_message') {
         setMessages(prev => [...prev, data]);
-        // Speak the message text using browser TTS
-        speakText(data.text);
+        
+        if (data.text && data.text.includes('FULL TIME')) {
+          setIsMuted(true);
+          if (window.speechSynthesis) window.speechSynthesis.cancel();
+        } else {
+          // Speak the message text using browser TTS
+          speakText(data.text);
+        }
       }
     };
 
