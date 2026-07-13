@@ -19,7 +19,11 @@ const LiveChat = () => {
     if (!window.speechSynthesis) return;
     // Cancel any currently speaking utterance
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+
+    // Strip emojis so the browser TTS doesn't read them out loud
+    const cleanText = text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').trim();
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.rate = 1.1;
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
