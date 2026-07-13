@@ -29,6 +29,7 @@ const DemoWalletButton = () => {
   const [wallet, setWallet] = React.useState(activeWallet);
   const [showPopup, setShowPopup] = React.useState(localStorage.getItem('showAirdropPopup') === 'true');
   const [balance, setBalance] = React.useState(100.00);
+  const [isCreating, setIsCreating] = React.useState(false);
   
   React.useEffect(() => {
     setWallet(activeWallet);
@@ -65,13 +66,11 @@ const DemoWalletButton = () => {
   }, [showPopup]);
   
   const handleCreate = async () => {
+    setIsCreating(true);
     const newWallet = Keypair.generate();
     const pubKey = newWallet.publicKey.toBase58();
     localStorage.setItem('guestWalletPubKey', pubKey);
     localStorage.setItem('guestWalletSecret', JSON.stringify(Array.from(newWallet.secretKey)));
-    localStorage.setItem('showAirdropPopup', 'true');
-    
-    setWallet(pubKey);
     
     try {
        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -82,7 +81,9 @@ const DemoWalletButton = () => {
        });
     } catch(e) { console.error(e); }
 
-    window.location.reload(); 
+    setWallet(pubKey);
+    setShowPopup(true);
+    setIsCreating(false);
   };
 
   return (
@@ -105,7 +106,21 @@ const DemoWalletButton = () => {
           <div className="wallet-addr-pill">💳 {wallet.substring(0,6)}...</div>
         </div>
       ) : (
-        <button className="btn-s" style={{padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', border: 'none', fontWeight: 'bold'}} onClick={handleCreate}>Create Wallet</button>
+        <button 
+          className="btn-s" 
+          style={{
+            padding: '10px 20px', 
+            borderRadius: '8px', 
+            cursor: isCreating ? 'not-allowed' : 'pointer', 
+            border: 'none', 
+            fontWeight: 'bold',
+            opacity: isCreating ? 0.7 : 1
+          }} 
+          onClick={handleCreate}
+          disabled={isCreating}
+        >
+          {isCreating ? 'Funding Wallet...' : 'Create Wallet'}
+        </button>
       )}
     </>
   );

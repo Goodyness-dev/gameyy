@@ -1,7 +1,133 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useWallet } from '@solana/wallet-adapter-react';
 import Modal from '../components/Modal';
+
+const MatchCard = React.memo(({ match, isExpanded, onToggleExpand, pickData, oddsData, handlePick, isLast }) => {
+  const p = pickData || {};
+  const o = oddsData || {};
+  const isBrazil = match.home === 'Brazil';
+  
+  return (
+    <div style={{ marginBottom: isExpanded ? '3rem' : '1rem' }}>
+      <div className="match-hero" 
+           onClick={onToggleExpand}
+           style={{ 
+             padding: '1.5rem', 
+             borderRadius: '16px', 
+             marginBottom: isExpanded ? '1.5rem' : '0',
+             cursor: 'pointer',
+             transition: 'background 0.2s',
+             position: 'relative'
+           }}
+           onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gr-l)'}
+           onMouseLeave={(e) => e.currentTarget.style.background = 'var(--gr-dk)'}
+      >
+        <div style={{ position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)', fontSize: '20px', color: 'rgba(245,240,232,0.6)' }}>
+          {isExpanded ? '▲' : '▼'}
+        </div>
+        <div className="mh-teams" style={{ gap: '2rem' }}>
+          <div className="tblock">
+            <div className="tflag" style={{background: 'none', border: 'none', padding: 0}}>
+              <img src={`https://hatscripts.github.io/circle-flags/flags/${isBrazil ? 'br' : 'ar'}.svg`} alt={match.home} width="40" height="40" />
+            </div>
+            <div className="tname" style={{ fontSize: '18px' }}>{match.home}</div>
+          </div>
+          <div className="vs-pill" style={{ fontSize: '12px', padding: '2px 8px' }}>VS</div>
+          <div className="tblock">
+            <div className="tflag" style={{background: 'none', border: 'none', padding: 0}}>
+              <img src={`https://hatscripts.github.io/circle-flags/flags/${isBrazil ? 'es' : 'fr'}.svg`} alt={match.away} width="40" height="40" />
+            </div>
+            <div className="tname" style={{ fontSize: '18px' }}>{match.away}</div>
+          </div>
+        </div>
+        <div className="kickoff" style={{ fontSize: '12px' }}>Kickoff: {match.time}</div>
+      </div>
+
+      {isExpanded && (
+        <div className="mkts">
+        <div className="mkt-block">
+          <div className="mkt-label">1. Match result</div>
+          <div className="opts opts-3">
+            <div className={`opt ${p.result === 'Home win' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'result', 'Home win')}>
+              <span className="opt-name">Home win</span>
+              <span className="opt-odds">±{o['Home win']?.toFixed(2)}</span>
+            </div>
+            <div className={`opt ${p.result === 'Draw' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'result', 'Draw')}>
+              <span className="opt-name">Draw</span>
+              <span className="opt-odds">±{o['Draw']?.toFixed(2)}</span>
+            </div>
+            <div className={`opt ${p.result === 'Away win' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'result', 'Away win')}>
+              <span className="opt-name">Away win</span>
+              <span className="opt-odds">±{o['Away win']?.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mkt-block">
+          <div className="mkt-label">2. Both teams to score</div>
+          <div className="opts opts-2">
+            <div className={`opt ${p.btts === 'Yes' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'btts', 'Yes')}>
+              <span className="opt-name">Yes</span>
+              <span className="opt-odds">±{o['Yes']?.toFixed(2)}</span>
+            </div>
+            <div className={`opt ${p.btts === 'No' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'btts', 'No')}>
+              <span className="opt-name">No</span>
+              <span className="opt-odds">±{o['No']?.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mkt-block">
+          <div className="mkt-label">3. Total goals</div>
+          <div className="opts opts-2">
+            <div className={`opt ${p.goals === 'Over 2.5' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'goals', 'Over 2.5')}>
+              <span className="opt-name">Over 2.5</span>
+              <span className="opt-odds">±{o['Over 2.5']?.toFixed(2)}</span>
+            </div>
+            <div className={`opt ${p.goals === 'Under 2.5' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'goals', 'Under 2.5')}>
+              <span className="opt-name">Under 2.5</span>
+              <span className="opt-odds">±{o['Under 2.5']?.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mkt-block">
+          <div className="mkt-label">4. First goalscorer</div>
+          <select 
+            className="player-sel" 
+            value={p.scorer || ""} 
+            onChange={(e) => handlePick(match.id, 'scorer', e.target.value)}
+          >
+            <option value="" disabled>Select a player…</option>
+            {isBrazil ? (
+              <>
+                <option value="vinicius">V. Júnior (±{o['vinicius']?.toFixed(2)})</option>
+                <option value="rodrygo">Rodrygo (±{o['rodrygo']?.toFixed(2)})</option>
+                <option value="morata">A. Morata (±{o['morata']?.toFixed(2)})</option>
+              </>
+            ) : (
+              <>
+                <option value="messi">L. Messi (±{o['messi']?.toFixed(2)})</option>
+                <option value="mbappe">K. Mbappé (±{o['mbappe']?.toFixed(2)})</option>
+                <option value="alvarez">J. Álvarez (±{o['alvarez']?.toFixed(2)})</option>
+                <option value="giroud">O. Giroud (±{o['giroud']?.toFixed(2)})</option>
+                <option value="dimaria">A. Di María (±{o['dimaria']?.toFixed(2)})</option>
+                <option value="griezmann">A. Griezmann (±{o['griezmann']?.toFixed(2)})</option>
+              </>
+            )}
+          </select>
+          <div className="skip" onClick={() => handlePick(match.id, 'scorer', null)}>Skip this market →</div>
+        </div>
+      </div>
+      )}
+      
+      {!isLast && (
+         <div style={{ height: '2px', background: 'var(--cr-dd)', margin: isExpanded ? '3rem 0' : '1.5rem 0', opacity: 0.5 }}></div>
+      )}
+    </div>
+  );
+});
 
 const PredictMatch = () => {
   const { id } = useParams();
@@ -75,7 +201,7 @@ const PredictMatch = () => {
       .catch(() => {});
   }, [id, connected, publicKey]);
 
-  const handlePick = (matchId, group, value) => {
+  const handlePick = useCallback((matchId, group, value) => {
     setPicks(prev => {
       if (prev[matchId] && prev[matchId][group] === value) {
         const newMatchPicks = { ...prev[matchId] };
@@ -93,33 +219,46 @@ const PredictMatch = () => {
         }
       };
     });
-  };
+  }, []);
 
-  let totalPotentialReturn = 0;
-  let hasPicks = false;
+  const handleToggleExpand = useCallback((idx) => {
+    setExpandedIndex(prev => prev === idx ? null : idx);
+  }, []);
 
   const activeMatchIds = Object.keys(picks).filter(matchId => {
     const p = picks[matchId];
     return p && (p.result || p.btts || p.goals || p.scorer);
   });
 
-  if (activeMatchIds.length > 0) {
-    const wagerPerMatch = wagerAmount / activeMatchIds.length;
-    activeMatchIds.forEach(matchId => {
-      const p = picks[matchId];
-      const o = oddsMap[matchId];
-      let matchOdds = 0;
-      if (p.result) matchOdds += (o[p.result] || 0);
-      if (p.btts) matchOdds += (o[p.btts] || 0);
-      if (p.goals) matchOdds += (o[p.goals] || 0);
-      if (p.scorer) matchOdds += (o[p.scorer] || 0);
-      
-      totalPotentialReturn += (wagerPerMatch * matchOdds);
-      hasPicks = true;
-    });
-  }
+  const { potentialReturn, totalSelections, totalOddsMultiplier, hasPicks } = useMemo(() => {
+    let returnAmount = 0;
+    let selectionsCount = 0;
+    let oddsSum = 0;
 
-  const potentialReturn = totalPotentialReturn;
+    if (activeMatchIds.length > 0) {
+      const wagerPerMatch = wagerAmount / activeMatchIds.length;
+      activeMatchIds.forEach(matchId => {
+        const p = picks[matchId];
+        const o = oddsMap[matchId];
+        let matchOdds = 0;
+        
+        if (p.result) { matchOdds += (o[p.result] || 0); selectionsCount++; }
+        if (p.btts) { matchOdds += (o[p.btts] || 0); selectionsCount++; }
+        if (p.goals) { matchOdds += (o[p.goals] || 0); selectionsCount++; }
+        if (p.scorer) { matchOdds += (o[p.scorer] || 0); selectionsCount++; }
+        
+        oddsSum += matchOdds;
+        returnAmount += (wagerPerMatch * matchOdds);
+      });
+    }
+
+    return {
+      potentialReturn: returnAmount,
+      totalSelections: selectionsCount,
+      totalOddsMultiplier: activeMatchIds.length > 0 ? oddsSum / activeMatchIds.length : 0,
+      hasPicks: activeMatchIds.length > 0
+    };
+  }, [picks, activeMatchIds, oddsMap, wagerAmount]);
 
   const handlePay = async () => {
     let activeWallet = connected && publicKey ? publicKey.toString() : localStorage.getItem('guestWalletPubKey');
@@ -208,131 +347,18 @@ const PredictMatch = () => {
               <p>You have either predicted all matches or there are no upcoming games.</p>
             </div>
           ) : (
-            availableMatches.map((match, idx) => {
-              const p = picks[match.id] || {};
-              const o = oddsMap[match.id] || {};
-              const isBrazil = match.home === 'Brazil';
-              
-              return (
-                <div key={match.id} style={{ marginBottom: expandedIndex === idx ? '3rem' : '1rem' }}>
-                  <div className="match-hero" 
-                       onClick={() => setExpandedIndex(expandedIndex === idx ? null : idx)}
-                       style={{ 
-                         padding: '1.5rem', 
-                         borderRadius: '16px', 
-                         marginBottom: expandedIndex === idx ? '1.5rem' : '0',
-                         cursor: 'pointer',
-                         transition: 'background 0.2s',
-                         position: 'relative'
-                       }}
-                       onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gr-l)'}
-                       onMouseLeave={(e) => e.currentTarget.style.background = 'var(--gr-dk)'}
-                  >
-                    <div style={{ position: 'absolute', right: '1.5rem', top: '50%', transform: 'translateY(-50%)', fontSize: '20px', color: 'rgba(245,240,232,0.6)' }}>
-                      {expandedIndex === idx ? '▲' : '▼'}
-                    </div>
-                    <div className="mh-teams" style={{ gap: '2rem' }}>
-                      <div className="tblock">
-                        <div className="tflag" style={{background: 'none', border: 'none', padding: 0}}>
-                          <img src={`https://hatscripts.github.io/circle-flags/flags/${isBrazil ? 'br' : 'ar'}.svg`} alt={match.home} width="40" height="40" />
-                        </div>
-                        <div className="tname" style={{ fontSize: '18px' }}>{match.home}</div>
-                      </div>
-                      <div className="vs-pill" style={{ fontSize: '12px', padding: '2px 8px' }}>VS</div>
-                      <div className="tblock">
-                        <div className="tflag" style={{background: 'none', border: 'none', padding: 0}}>
-                          <img src={`https://hatscripts.github.io/circle-flags/flags/${isBrazil ? 'es' : 'fr'}.svg`} alt={match.away} width="40" height="40" />
-                        </div>
-                        <div className="tname" style={{ fontSize: '18px' }}>{match.away}</div>
-                      </div>
-                    </div>
-                    <div className="kickoff" style={{ fontSize: '12px' }}>Kickoff: {match.time}</div>
-                  </div>
-
-                  {expandedIndex === idx && (
-                    <div className="mkts">
-                    <div className="mkt-block">
-                      <div className="mkt-label">1. Match result</div>
-                      <div className="opts opts-3">
-                        <div className={`opt ${p.result === 'Home win' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'result', 'Home win')}>
-                          <span className="opt-name">Home win</span>
-                          <span className="opt-odds">±{o['Home win']?.toFixed(2)}</span>
-                        </div>
-                        <div className={`opt ${p.result === 'Draw' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'result', 'Draw')}>
-                          <span className="opt-name">Draw</span>
-                          <span className="opt-odds">±{o['Draw']?.toFixed(2)}</span>
-                        </div>
-                        <div className={`opt ${p.result === 'Away win' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'result', 'Away win')}>
-                          <span className="opt-name">Away win</span>
-                          <span className="opt-odds">±{o['Away win']?.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mkt-block">
-                      <div className="mkt-label">2. Both teams to score</div>
-                      <div className="opts opts-2">
-                        <div className={`opt ${p.btts === 'Yes' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'btts', 'Yes')}>
-                          <span className="opt-name">Yes</span>
-                          <span className="opt-odds">±{o['Yes']?.toFixed(2)}</span>
-                        </div>
-                        <div className={`opt ${p.btts === 'No' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'btts', 'No')}>
-                          <span className="opt-name">No</span>
-                          <span className="opt-odds">±{o['No']?.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mkt-block">
-                      <div className="mkt-label">3. Total goals</div>
-                      <div className="opts opts-2">
-                        <div className={`opt ${p.goals === 'Over 2.5' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'goals', 'Over 2.5')}>
-                          <span className="opt-name">Over 2.5</span>
-                          <span className="opt-odds">±{o['Over 2.5']?.toFixed(2)}</span>
-                        </div>
-                        <div className={`opt ${p.goals === 'Under 2.5' ? 'sel' : ''}`} onClick={() => handlePick(match.id, 'goals', 'Under 2.5')}>
-                          <span className="opt-name">Under 2.5</span>
-                          <span className="opt-odds">±{o['Under 2.5']?.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mkt-block">
-                      <div className="mkt-label">4. First goalscorer</div>
-                      <select 
-                        className="player-sel" 
-                        value={p.scorer || ""} 
-                        onChange={(e) => handlePick(match.id, 'scorer', e.target.value)}
-                      >
-                        <option value="" disabled>Select a player…</option>
-                        {isBrazil ? (
-                          <>
-                            <option value="vinicius">V. Júnior (±{o['vinicius']?.toFixed(2)})</option>
-                            <option value="rodrygo">Rodrygo (±{o['rodrygo']?.toFixed(2)})</option>
-                            <option value="morata">A. Morata (±{o['morata']?.toFixed(2)})</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="messi">L. Messi (±{o['messi']?.toFixed(2)})</option>
-                            <option value="mbappe">K. Mbappé (±{o['mbappe']?.toFixed(2)})</option>
-                            <option value="alvarez">J. Álvarez (±{o['alvarez']?.toFixed(2)})</option>
-                            <option value="giroud">O. Giroud (±{o['giroud']?.toFixed(2)})</option>
-                            <option value="dimaria">A. Di María (±{o['dimaria']?.toFixed(2)})</option>
-                            <option value="griezmann">A. Griezmann (±{o['griezmann']?.toFixed(2)})</option>
-                          </>
-                        )}
-                      </select>
-                      <div className="skip" onClick={() => handlePick(match.id, 'scorer', null)}>Skip this market →</div>
-                    </div>
-                  </div>
-                  )}
-                  
-                  {idx < availableMatches.length - 1 && (
-                     <div style={{ height: '2px', background: 'var(--cr-dd)', margin: expandedIndex === idx ? '3rem 0' : '1.5rem 0', opacity: 0.5 }}></div>
-                  )}
-                </div>
-              );
-            })
+            availableMatches.map((match, idx) => (
+              <MatchCard
+                key={match.id}
+                match={match}
+                isExpanded={expandedIndex === idx}
+                onToggleExpand={() => handleToggleExpand(idx)}
+                pickData={picks[match.id]}
+                oddsData={oddsMap[match.id]}
+                handlePick={handlePick}
+                isLast={idx === availableMatches.length - 1}
+              />
+            ))
           )}
         </div>
 
@@ -340,14 +366,29 @@ const PredictMatch = () => {
           <div className="bs-deco1"></div>
           <div className="bs-deco2"></div>
           <div className="bs-title">⚽ Master prediction slip</div>
+          
           <div className="bs-row">
             <span className="bs-lbl">Wager Amount (PULSE)</span>
             <input type="number" value={wagerAmount} onChange={(e) => setWagerAmount(Number(e.target.value))} style={{width: '80px', textAlign: 'right', background: 'var(--gr-dk)', border: '1px solid var(--cr-dd)', color: '#fff', borderRadius: '4px', padding: '4px 8px'}} min="1" />
           </div>
+          
+          <div className="bs-row">
+            <span className="bs-lbl">Total Selections</span>
+            <span style={{fontSize: '14px', fontWeight: 'bold', color: 'var(--cr)'}}>{totalSelections}</span>
+          </div>
+
+          <div className="bs-row">
+            <span className="bs-lbl">Total Odds Multiplier</span>
+            <span style={{fontSize: '14px', fontWeight: 'bold', color: 'var(--gd)'}}>
+              {totalOddsMultiplier > 0 ? `+${totalOddsMultiplier.toFixed(2)}x` : '0.00x'}
+            </span>
+          </div>
+
           <div className="bs-row">
             <span className="bs-lbl">Total Potential Return</span>
             <span className="pts-pos" style={{fontSize: '18px', fontWeight: 'bold'}}>+{potentialReturn.toFixed(2)} PULSE</span>
           </div>
+
           <button className="pay-btn" onClick={handlePay} disabled={!hasPicks || wagerAmount <= 0}>🔒 Lock Parlay ({wagerAmount} PULSE)</button>
           <Link to={`/group/${id || 'LM79C3'}`} className="cancel-lnk">Cancel and go back</Link>
         </div>

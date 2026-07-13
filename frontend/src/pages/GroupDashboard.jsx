@@ -34,6 +34,8 @@ const GroupDashboard = () => {
           
           const lbRes = await fetch(`${API_URL}/api/leaderboard/${group.id}`);
           const lb = await lbRes.json();
+          let activeWallet = connected && publicKey ? publicKey.toString() : localStorage.getItem('guestWalletPubKey');
+
           if (Array.isArray(lb)) {
             const formatted = lb.map((entry, idx) => {
                 let livePts = entry.total_pts / 100;
@@ -61,9 +63,9 @@ const GroupDashboard = () => {
         }
 
         // 2. Fetch User Predictions
-        let activeWallet = connected && publicKey ? publicKey.toString() : localStorage.getItem('guestWalletPubKey');
-        if (activeWallet) {
-          const predRes = await fetch(`${API_URL}/api/predictions/${id}/${activeWallet}`);
+        let activeWalletForPred = connected && publicKey ? publicKey.toString() : localStorage.getItem('guestWalletPubKey');
+        if (activeWalletForPred) {
+          const predRes = await fetch(`${API_URL}/api/predictions/${id}/${activeWalletForPred}`);
           const preds = await predRes.json();
           if (Array.isArray(preds)) setEscrows(preds);
         }
