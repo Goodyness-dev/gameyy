@@ -15,8 +15,8 @@ import bs58 from 'bs58';export const handleGoalEvent = async (event, matchId) =>
     await evaluatePicks(matchId, 'scorer', event.scorer);
   }
 
-  // Evaluate BTTS if it just hit
-  if (isBTTS && (totalGoals === 2 || (event.score.home === 1 && event.score.away === 1))) {
+  // Evaluate BTTS if it just hit (meaning one team just scored their 1st goal while the other already had >0)
+  if (isBTTS && (event.score.home === 1 || event.score.away === 1)) {
     await evaluatePicks(matchId, 'btts', 'Yes');
   }
 
@@ -237,7 +237,7 @@ export const recalculateLeaderboards = async (matchId) => {
     }
 
     const liveTotal = (parseFloat(m.balance) || 0) + liveBonus;
-
+    console.log(`[DEBUG LEADERBOARD] member: ${memberId}, balance: ${m.balance}, liveBonus: ${liveBonus}, liveTotal: ${liveTotal}`);
     await supabase
       .from('leaderboard')
       .update({ total_pts: Math.round(liveTotal * 100) })

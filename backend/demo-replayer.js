@@ -51,6 +51,9 @@ export const runDemo = async () => {
   const realMatchId1 = matchData1.id;
   const realMatchId2 = matchData2.id;
 
+  console.log('Resetting match statuses for a fresh demo run...');
+  await supabase.from('matches').update({ status: 'scheduled' }).in('id', [realMatchId1, realMatchId2]);
+
   console.log('Simulating live match events every 10 seconds...');
 
   const matchDataJSON = loadMockData();
