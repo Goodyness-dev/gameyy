@@ -117,13 +117,17 @@ const executePayouts = async (matchId) => {
     }
   }
 
+  const winnersAggregated = {};
 
   // 3. Execute payouts and DB updates once per winning member
   for (const memberId of Object.keys(memberPayouts)) {
     const data = memberPayouts[memberId];
     console.log(`[ESCROW] Winner found! ${data.wallet_address} won ${data.payout.toFixed(2)} PULSE`);
     
-    winnersList.push({ username: data.username, payout: data.payout });
+    if (!winnersAggregated[data.username]) {
+      winnersAggregated[data.username] = 0;
+    }
+    winnersAggregated[data.username] += data.payout;
 
     // Update DB balance always (preventing race conditions by doing it once)
     await supabase.from('members').update({ balance: data.oldBalance + data.payout }).eq('id', memberId);
@@ -139,6 +143,8 @@ const executePayouts = async (matchId) => {
       }
     }
   }
+
+  const winnersList = Object.keys(winnersAggregated).map(u => ({ username: u, payout: winnersAggregated[u] }));
 
   return winnersList;
 };

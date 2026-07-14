@@ -511,7 +511,29 @@ router.get('/leaderboard/:groupId', async (req, res) => {
     .order('total_pts', { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+
+  // Aggregate by telegram_username to fix duplicate dummy member rows
+  const aggregated = {};
+  for (const row of data) {
+    const user = row.members?.telegram_username || 'Unknown';
+    if (!aggregated[user]) {
+      // Deep clone to avoid mutating the original data
+      aggregated[user] = JSON.parse(JSON.stringify(row));
+    } else {
+      aggregated[user].total_pts += row.total_pts;
+      aggregated[user].matches_played += row.matches_played;
+      if (row.members && aggregated[user].members) {
+         const oldBal = parseFloat(aggregated[user].members.balance || 0);
+         const newBal = parseFloat(row.members.balance || 0);
+         aggregated[user].members.balance = (oldBal + newBal).toString();
+      }
+    }
+  }
+
+  // Re-sort the aggregated array
+  const finalData = Object.values(aggregated).sort((a, b) => b.total_pts - a.total_pts);
+
+  res.json(finalData);
 });
 
 /**
