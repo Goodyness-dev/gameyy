@@ -20,6 +20,11 @@ import bs58 from 'bs58';export const handleGoalEvent = async (event, matchId) =>
     await evaluatePicks(matchId, 'btts', 'Yes');
   }
 
+  // Evaluate Over 2.5 immediately if the 3rd goal is scored
+  if (totalGoals === 3) {
+    await evaluatePicks(matchId, 'goals', 'Over 2.5');
+  }
+
   await recalculateLeaderboards(matchId);
 };
 

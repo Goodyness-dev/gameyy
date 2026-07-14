@@ -641,11 +641,25 @@ router.post('/webhook/txline', async (req, res) => {
   try {
     console.log(`[WEBHOOK] Received live event for match ${liveEventData.match_id}: ${liveEventData.event || 'UPDATE'}`);
     
+    // Look up the internal match UUID from txline_id
+    const { data: matchObj, error: mErr } = await supabase
+      .from('matches')
+      .select('id')
+      .eq('txline_id', liveEventData.match_id)
+      .single();
+
+    if (mErr || !matchObj) {
+       console.error('[WEBHOOK ERROR] Internal match not found for txline_id:', liveEventData.match_id);
+       return res.status(404).send('Match not found');
+    }
+    
+    const internalMatchId = matchObj.id;
+
     // Pass the real-time event directly into our existing engine
     if (liveEventData.event === 'GOAL') {
-      await handleGoalEvent(liveEventData.match_id, liveEventData.score);
+      await handleGoalEvent(liveEventData, internalMatchId);
     } else if (liveEventData.event === 'MATCH_END') {
-      await handleMatchEnd(liveEventData.match_id);
+      await handleMatchEnd(internalMatchId, liveEventData.score);
     }
     
     res.status(200).send('Webhook Processed Successfully');
