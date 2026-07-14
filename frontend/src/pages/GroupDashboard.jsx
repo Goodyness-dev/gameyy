@@ -39,11 +39,8 @@ const GroupDashboard = () => {
           if (Array.isArray(lb)) {
             const formatted = lb.map((entry, idx) => {
                 let livePts = entry.total_pts / 100;
-                if (entry.members && entry.members.balance !== null && entry.members.balance !== undefined) {
+                if (livePts === 0 && (!entry.matches_played || entry.matches_played === 0) && entry.members?.balance) {
                   livePts = parseFloat(entry.members.balance);
-                } else if (livePts === 0 && (!entry.matches_played || entry.matches_played === 0)) {
-                  // Auto-correct old users who joined before the init fix
-                  livePts = 100;
                 }
                 
                 if (entry.members?.wallet_address === activeWallet) {

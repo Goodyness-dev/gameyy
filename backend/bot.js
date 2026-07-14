@@ -300,8 +300,18 @@ export const broadcastMatchEnd = async (chatIds, matchName, finalScore, winners 
   let script = `🏁 FULL TIME! ${matchName} has officially ended. Final Score: ${finalScore.home} - ${finalScore.away}.`;
 
   if (winners && winners.length > 0) {
-    const winnerTexts = winners.map(w => `@${(w.username || 'unknown').replace('@', '')} (+${w.payout.toFixed(2)} PULSE)`).join(', ');
-    script += `\n\n🏆 Congratulations to our winners: ${winnerTexts}!`;
+    const sortedWinners = winners.sort((a, b) => b.payout - a.payout);
+    const displayWinners = sortedWinners.slice(0, 1);
+    const extraCount = sortedWinners.length - 1;
+    
+    const winnerTexts = displayWinners.map(w => `@${(w.username || 'unknown').replace('@', '')} (+${w.payout.toFixed(2)} PULSE)`).join(', ');
+    
+    script += `\n\n🏆 Congratulations to our top winner: ${winnerTexts}`;
+    if (extraCount > 0) {
+      script += ` and ${extraCount} others!`;
+    } else {
+      script += `!`;
+    }
   } else {
     script += `\n\nSadly, nobody scored any points on this match. Better luck next time!`;
   }

@@ -100,9 +100,11 @@ const DemoWalletButton = () => {
       
       {wallet ? (
         <div className="wallet-balance-container">
-          <div className="wallet-balance-pill">
-            🪙 {balance.toFixed(2)} PULSE
-          </div>
+          {location.pathname.startsWith('/group') && (
+            <div className="wallet-balance-pill">
+              🪙 {balance.toFixed(2)} PULSE
+            </div>
+          )}
           <div className="wallet-addr-pill">💳 {wallet.substring(0,6)}...</div>
         </div>
       ) : (

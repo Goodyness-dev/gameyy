@@ -43,6 +43,9 @@ export const handleMatchEnd = async (matchId, finalScore) => {
   // Trigger Escrow Payouts to update DB balances
   const winners = await executePayouts(matchId);
 
+  // Update match status to finished so we don't double count in live bonus
+  await supabase.from('matches').update({ status: 'finished' }).eq('id', matchId);
+
   // Recalculate leaderboards AFTER balances are updated
   await recalculateLeaderboards(matchId);
 
@@ -144,9 +147,9 @@ const executePayouts = async (matchId) => {
     }
   }
 
-  const winnersList = Object.keys(winnersAggregated).map(u => ({ username: u, payout: winnersAggregated[u] }));
+  const finalWinnersList = Object.keys(winnersAggregated).map(u => ({ username: u, payout: winnersAggregated[u] }));
 
-  return winnersList;
+  return finalWinnersList;
 };
 
 const evaluatePicks = async (matchId, market, correctValue) => {
@@ -192,7 +195,7 @@ const evaluatePicks = async (matchId, market, correctValue) => {
   }
 };
 
-const recalculateLeaderboards = async (matchId) => {
+export const recalculateLeaderboards = async (matchId) => {
   // First, find all members who had predictions in this match
   const { data: affectedPredictions } = await supabase
     .from('predictions')
@@ -211,9 +214,26 @@ const recalculateLeaderboards = async (matchId) => {
   // Then, fetch the balances directly from members table
   for (const memberId of memberIds) {
     const { data: m } = await supabase.from('members').select('balance').eq('id', memberId).single();
+    
+    // Calculate live bonus from active predictions
+    const { data: livePreds } = await supabase
+      .from('predictions')
+      .select('wager_amount, net_points, matches!inner(status)')
+      .eq('member_id', memberId)
+      .neq('matches.status', 'finished');
+      
+    let liveBonus = 0;
+    if (livePreds) {
+       livePreds.forEach(pred => {
+          liveBonus += (parseFloat(pred.wager_amount) || 0) * (parseFloat(pred.net_points) || 0);
+       });
+    }
+
+    const liveTotal = (parseFloat(m.balance) || 0) + liveBonus;
+
     await supabase
       .from('leaderboard')
-      .update({ total_pts: Math.round((parseFloat(m.balance) || 0) * 100) })
+      .update({ total_pts: Math.round(liveTotal * 100) })
       .eq('member_id', memberId)
       .eq('group_id', memberGroups[memberId]);
   }

@@ -1,7 +1,7 @@
 import express from 'express';
 import { supabase } from './db.js';
 import { getMatches, getMatchById, getMatchOdds } from './txline.js';
-import { handleGoalEvent, handleMatchEnd } from './engine.js';
+import { handleGoalEvent, handleMatchEnd, recalculateLeaderboards } from './engine.js';
 import { Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, createMintToInstruction } from '@solana/spl-token';
 import bs58 from 'bs58';
@@ -362,9 +362,6 @@ router.post('/predictions', async (req, res) => {
 
     await supabase.from('members').update({ balance: currentBalance - wager }).eq('id', memberId);
     
-    // Sync leaderboard instantly
-    await supabase.from('leaderboard').update({ total_pts: (currentBalance - wager) * 100 }).eq('member_id', memberId).eq('group_id', groupId);
-
     const { data, error } = await supabase
       .from('predictions')
       .insert([{ 
@@ -378,6 +375,23 @@ router.post('/predictions', async (req, res) => {
       .single();
 
     if (error) throw error;
+    
+    // Sync leaderboard dynamically for this member
+    const { data: livePreds } = await supabase
+      .from('predictions')
+      .select('wager_amount, net_points, matches!inner(status)')
+      .eq('member_id', memberId)
+      .neq('matches.status', 'finished');
+      
+    let liveBonus = 0;
+    if (livePreds) {
+       livePreds.forEach(pred => {
+          liveBonus += (parseFloat(pred.wager_amount) || 0) * (parseFloat(pred.net_points) || 0);
+       });
+    }
+    const liveTotal = (currentBalance - wager) + liveBonus;
+    await supabase.from('leaderboard').update({ total_pts: Math.round(liveTotal * 100) }).eq('member_id', memberId).eq('group_id', groupId);
+    
     res.json(data);
   } catch (err) {
     console.error("Prediction Save Error:", err);
@@ -437,7 +451,6 @@ router.post('/predictions/bulk', async (req, res) => {
     if (currentBalance < wager) throw new Error("Insufficient PULSE points balance");
 
     await supabase.from('members').update({ balance: currentBalance - wager }).eq('id', memberId);
-    await supabase.from('leaderboard').update({ total_pts: (currentBalance - wager) * 100 }).eq('member_id', memberId).eq('group_id', groupId);
 
     const splitWager = parseFloat((wager / predictions.length).toFixed(2));
     const inserts = [];
@@ -483,6 +496,23 @@ router.post('/predictions/bulk', async (req, res) => {
       .select();
 
     if (error) throw error;
+    
+    // Sync leaderboard dynamically for this member
+    const { data: livePreds } = await supabase
+      .from('predictions')
+      .select('wager_amount, net_points, matches!inner(status)')
+      .eq('member_id', memberId)
+      .neq('matches.status', 'finished');
+      
+    let liveBonus = 0;
+    if (livePreds) {
+       livePreds.forEach(pred => {
+          liveBonus += (parseFloat(pred.wager_amount) || 0) * (parseFloat(pred.net_points) || 0);
+       });
+    }
+    const liveTotal = (currentBalance - wager) + liveBonus;
+    await supabase.from('leaderboard').update({ total_pts: Math.round(liveTotal * 100) }).eq('member_id', memberId).eq('group_id', groupId);
+    
     res.json(data);
   } catch (err) {
     console.error("Bulk Prediction Save Error:", err);
