@@ -138,13 +138,7 @@ const TopNav = () => {
             How to Play & Rules
           </Link>
         )}
-        {/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && !window.solana ? (
-          <a href={`https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}`} className="wallet-adapter-button wallet-adapter-button-trigger" style={{ textDecoration: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            Open in Phantom
-          </a>
-        ) : (
-          <DemoWalletButton />
-        )}
+        <DemoWalletButton />
       </div>
     </nav>
   );
