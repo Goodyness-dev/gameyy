@@ -296,7 +296,7 @@ export const resolveFlashMarket = async (chatIds, event, matchId, matchName) => 
   }
 };
 
-export const broadcastMatchEnd = async (chatIds, matchName, finalScore, winners = []) => {
+export const broadcastMatchEnd = async (chatId, matchName, finalScore, winners = [], groupId = null) => {
   let script = `🏁 FULL TIME! ${matchName} has officially ended. Final Score: ${finalScore.home} - ${finalScore.away}.`;
 
   if (winners && winners.length > 0) {
@@ -320,14 +320,14 @@ export const broadcastMatchEnd = async (chatIds, matchName, finalScore, winners 
     text: script,
     audioUrl: null,
     timestamp: new Date().toISOString(),
-    matchName: matchName
+    matchName: matchName,
+    groupId: groupId
   });
 
-  const chatIdsArray = Array.isArray(chatIds) ? chatIds : [chatIds];
-  for (const chatId of chatIdsArray) {
+  if (chatId) {
     try {
       await bot.telegram.sendMessage(chatId, `🏁 ${script}`);
-    } catch (e) { console.log("Bot match end broadcast failed"); }
+    } catch (e) { console.log(`Bot match end broadcast failed for chat ${chatId}`); }
   }
 };
 

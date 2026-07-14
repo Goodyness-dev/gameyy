@@ -116,7 +116,8 @@ const executePayouts = async (matchId) => {
            payout: 0,
            username: pred.members.telegram_username,
            wallet_address: pred.members.wallet_address,
-           oldBalance: parseFloat(pred.members.balance || 0)
+           oldBalance: parseFloat(pred.members.balance || 0),
+           group_id: pred.members.group_id
          };
        }
        memberPayouts[pred.member_id].payout += payoutAmount;
@@ -125,17 +126,16 @@ const executePayouts = async (matchId) => {
     }
   }
 
-  const winnersAggregated = {};
+  const winnersByGroup = {};
 
   // 3. Execute payouts and DB updates once per winning member
   for (const memberId of Object.keys(memberPayouts)) {
     const data = memberPayouts[memberId];
-    console.log(`[ESCROW] Winner found! ${data.wallet_address} won ${data.payout.toFixed(2)} PULSE`);
+    console.log(`[ESCROW] Winner found! ${data.wallet_address} won ${data.payout.toFixed(2)} PULSE in group ${data.group_id}`);
     
-    if (!winnersAggregated[data.username]) {
-      winnersAggregated[data.username] = 0;
-    }
-    winnersAggregated[data.username] += data.payout;
+    if (!winnersByGroup[data.group_id]) winnersByGroup[data.group_id] = {};
+    if (!winnersByGroup[data.group_id][data.username]) winnersByGroup[data.group_id][data.username] = 0;
+    winnersByGroup[data.group_id][data.username] += data.payout;
 
     // Update DB balance always (preventing race conditions by doing it once)
     await supabase.from('members').update({ balance: data.oldBalance + data.payout }).eq('id', memberId);
@@ -152,9 +152,11 @@ const executePayouts = async (matchId) => {
     }
   }
 
-  const finalWinnersList = Object.keys(winnersAggregated).map(u => ({ username: u, payout: winnersAggregated[u] }));
-
-  return finalWinnersList;
+  const finalWinnersByGroup = {};
+  for (const groupId of Object.keys(winnersByGroup)) {
+    finalWinnersByGroup[groupId] = Object.keys(winnersByGroup[groupId]).map(u => ({ username: u, payout: winnersByGroup[groupId][u] }));
+  }
+  return finalWinnersByGroup;
 };
 
 const evaluatePicks = async (matchId, market, correctValue) => {

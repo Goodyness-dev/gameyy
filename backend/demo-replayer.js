@@ -29,23 +29,17 @@ export const runDemo = async () => {
   }
   
   console.log('Fetching active Telegram Chat IDs from database...');
-  const { data: groups, error } = await supabase.from('groups').select('chat_id').not('chat_id', 'is', null);
+  const { data: allGroups, error } = await supabase.from('groups').select('id, chat_id');
   
-  if (error || !groups || groups.length === 0) {
-    console.log("⚠️ WARNING: No groups found with a linked Telegram Chat ID in the database.");
-    console.log("Create a group in the UI and link a Chat ID, or add a default TELEGRAM_CHAT_ID to .env if you just want to test globally.");
+  if (error || !allGroups || allGroups.length === 0) {
+    console.log("⚠️ WARNING: No groups found in the database.");
   }
   
-  const chatIds = groups && groups.length > 0 
-    ? [...new Set(groups.map(g => g.chat_id))] 
+  const chatIds = allGroups && allGroups.length > 0 
+    ? [...new Set(allGroups.filter(g => g.chat_id).map(g => g.chat_id))] 
     : (process.env.TELEGRAM_CHAT_ID ? [process.env.TELEGRAM_CHAT_ID] : []);
 
-  if (chatIds.length === 0) {
-    console.error("❌ ERROR: No Telegram Chat IDs available to broadcast to. Exiting.");
-    return;
-  }
-
-  console.log(`Found ${chatIds.length} unique Telegram communities to broadcast to.`);
+  console.log(`Found ${chatIds.length} unique Telegram communities and ${allGroups?.length || 0} total groups.`);
 
   console.log('Resolving real Match UUIDs from database...');
   const { data: matchData1, error: matchErr1 } = await supabase.from('matches').select('id').eq('txline_id', MOCK_MATCH_ID_1).single();
@@ -101,8 +95,13 @@ export const runDemo = async () => {
         let finalScore = { home: 3, away: 3 }; // 3-3 for arg-fra
         if (name === 'BRA-SPA') finalScore = { home: 1, away: 2 }; // 1-2 for Spain
         
-        handleMatchEnd(realMatchId, finalScore).then(winners => {
-          broadcastMatchEnd(chatIds, name, finalScore, winners).catch(console.error);
+        handleMatchEnd(realMatchId, finalScore).then(winnersByGroup => {
+          if (allGroups && allGroups.length > 0) {
+            for (const g of allGroups) {
+              const groupWinners = winnersByGroup[g.id] || [];
+              broadcastMatchEnd(g.chat_id, name, finalScore, groupWinners, g.id).catch(console.error);
+            }
+          }
         }).catch(console.error);
       }
     }
