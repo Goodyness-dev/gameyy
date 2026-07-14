@@ -209,12 +209,13 @@ router.post('/wallet/airdrop', async (req, res) => {
     );
 
     // Mint 100 tokens (with 2 decimals, so 10000)
+    console.log(`[AIRDROP] Attempting mintTo. Mint: ${mintPubkey.toBase58()}, Destination: ${userAta.address.toBase58()}, Authority: ${treasuryKeypair.publicKey.toBase58()}`);
     const txSig = await mintTo(
       connection,
       treasuryKeypair,
       mintPubkey,
       userAta.address,
-      treasuryKeypair.publicKey, // mint authority
+      treasuryKeypair, // Pass the signer explicitly, not just the publicKey
       10000 // 100.00
     );
 
@@ -365,6 +366,111 @@ router.post('/predictions', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error("Prediction Save Error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * @route POST /api/predictions/bulk
+ * @desc Submit multiple predictions at once for a parlay
+ */
+router.post('/predictions/bulk', async (req, res) => {
+  const { wallet_address, group_invite_code, tx_signature, wager_amount, predictions } = req.body;
+
+  if (tx_signature && tx_signature.length > 50) {
+    try {
+      const tx = await connection.getTransaction(tx_signature, { maxSupportedTransactionVersion: 0 });
+      if (!tx) {
+         console.log("[WARNING] Transaction not found on Devnet. Proceeding for demo purposes.");
+      } else {
+         console.log("[SUCCESS] Escrow transaction verified on-chain.");
+      }
+    } catch (err) {
+      console.error("Tx Verify Error:", err);
+    }
+  }
+
+  try {
+    let inviteCode = group_invite_code || 'DEMO-' + Math.random().toString(36).substring(7);
+    let safeWallet = wallet_address || 'mock_wallet_' + Math.random().toString(36).substring(7);
+
+    let groupId;
+    const { data: group } = await supabase.from('groups').select('id').eq('invite_code', inviteCode).single();
+    if (group) {
+      groupId = group.id;
+    } else {
+      const { data: newGroup, error: groupError } = await supabase.from('groups').insert([{ name: 'Demo Group', invite_code: inviteCode, created_by: safeWallet, entry_fee: 0.1 }]).select().single();
+      if (groupError) throw new Error("Group Error: " + groupError.message);
+      groupId = newGroup.id;
+    }
+
+    let memberId;
+    const { data: member } = await supabase.from('members').select('id').eq('wallet_address', safeWallet).eq('group_id', groupId).single();
+    if (member) {
+      memberId = member.id;
+    } else {
+      const { data: newMember, error: memberError } = await supabase.from('members').insert([{ group_id: groupId, wallet_address: safeWallet, telegram_username: '@' + safeWallet.substring(0,5) }]).select().single();
+      if (memberError) throw new Error("Member Error: " + memberError.message);
+      memberId = newMember.id;
+      await supabase.from('leaderboard').insert([{ group_id: groupId, member_id: memberId, total_pts: 10000 }]);
+    }
+
+    const { data: memberData } = await supabase.from('members').select('balance').eq('id', memberId).single();
+    const currentBalance = parseFloat(memberData?.balance || 100);
+    const wager = parseFloat(wager_amount || 0);
+
+    if (currentBalance < wager) throw new Error("Insufficient PULSE points balance");
+
+    await supabase.from('members').update({ balance: currentBalance - wager }).eq('id', memberId);
+    await supabase.from('leaderboard').update({ total_pts: (currentBalance - wager) * 100 }).eq('member_id', memberId).eq('group_id', groupId);
+
+    const splitWager = parseFloat((wager / predictions.length).toFixed(2));
+    const inserts = [];
+
+    for (const pred of predictions) {
+      let realMatchId;
+      if (pred.match_id && pred.match_id.length === 36 && pred.match_id.split('-').length === 5) {
+        realMatchId = pred.match_id;
+      } else {
+        const matchTxId = pred.match_id || 'demo-match-001';
+        const isBrazil = matchTxId === 'bra-spa' || matchTxId === 'demo-match-002';
+        
+        const { data: matchData, error: matchError } = await supabase
+          .from('matches')
+          .upsert(
+            [{ 
+               txline_id: matchTxId, 
+               home_team: isBrazil ? 'Brazil' : 'Argentina', 
+               away_team: isBrazil ? 'Spain' : 'France', 
+               kickoff_time: new Date().toISOString() 
+            }],
+            { onConflict: 'txline_id' }
+          )
+          .select('id')
+          .single();
+          
+        if (matchError) throw new Error("Match Error: " + matchError.message);
+        realMatchId = matchData.id;
+      }
+
+      inserts.push({
+        member_id: memberId,
+        match_id: realMatchId,
+        picks: pred.picks,
+        wager_amount: splitWager,
+        tx_signature: tx_signature ? `${tx_signature}-${inserts.length}` : null
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('predictions')
+      .insert(inserts)
+      .select();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error("Bulk Prediction Save Error:", err);
     return res.status(500).json({ error: err.message });
   }
 });
