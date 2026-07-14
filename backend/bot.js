@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 import * as googleTTS from 'google-tts-api';
 import { globalEvents } from './events.js';
 
-dotenv.config();
+dotenv.config(); console.log('bot.js executing, token:', process.env.TELEGRAM_BOT_TOKEN ? 'exists' : 'missing');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,8 +22,8 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || 'dummy_token_for_dev'
 const flashBets = {};
 
 // Basic Commands
-bot.command('start', async (ctx) => {
-  const payload = ctx.payload; // telegraf extracts the startgroup payload
+bot.start(async (ctx) => {
+  const payload = ctx.startPayload || ctx.payload; // telegraf extracts the start/startgroup payload reliably
   if (payload && payload.startsWith('LINK_')) {
     const inviteCode = payload.split('_')[1];
     
@@ -37,7 +37,7 @@ bot.command('start', async (ctx) => {
       return ctx.reply('❌ Failed to link group. Please check if the invite code is valid.');
     }
     
-    return ctx.reply(`✅ Successfully linked this Telegram community to Group ${inviteCode} on TxLINE Pulse! You will now receive live match events here.`);
+    return ctx.reply(`✅ Successfully linked this Telegram chat to Group ${inviteCode} on TxLINE Pulse! You will now receive live match events here.`);
   }
 
   console.log("[TELEGRAM] Received /start from Chat ID:", ctx.chat.id);
@@ -54,11 +54,16 @@ bot.command('leaderboard', async (ctx) => {
  * In a real app, this would hit OpenAI. For the hackathon demo, we use a dynamic template.
  */
 const generateTrashTalk = (scorer, minute, ruinedPredictions) => {
-  const ruinedText = ruinedPredictions.length > 0 
-    ? `That completely ruins the prediction for ${ruinedPredictions.join(', ')}!` 
-    : `A great pick for those who backed him.`;
-    
-  return `GOAL! ${scorer} finds the back of the net in the ${minute}th minute! ${ruinedText}`;
+  const templates = [
+    `A calm and composed finish by ${scorer} in the ${minute}th minute. Beautiful play.`,
+    `Brilliant execution! ${scorer} finds the back of the net at minute ${minute}.`,
+    `What a fantastic strike from ${scorer} in the ${minute}th minute. Clinical finishing.`,
+    `Goal! ${scorer} makes no mistake in the ${minute}th minute. Pure class.`,
+    `A moment of magic from ${scorer} right on the ${minute}th minute mark. Incredible.`,
+    `Textbook finishing! ${scorer} slots it home in the ${minute}th minute.`
+  ];
+  const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+  return randomTemplate;
 };
 
 /**
@@ -119,7 +124,7 @@ const generateGoalAudio = async (script) => {
 /**
  * Triggered by the Engine when a goal happens
  */
-export const broadcastGoal = async (chatId, event, ruinedUsernames) => {
+export const broadcastGoal = async (chatIds, event, ruinedUsernames, matchName) => {
   const script = generateTrashTalk(event.scorer, event.minute, ruinedUsernames);
   const audio = await generateGoalAudio(script);
 
@@ -127,31 +132,36 @@ export const broadcastGoal = async (chatId, event, ruinedUsernames) => {
   globalEvents.emit('chat_message', {
     text: script,
     audioUrl: audio?.webUrl || audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    matchName: matchName
   });
 
-  // Send text first for speed
-  try {
-    await bot.telegram.sendMessage(chatId, `⚽ ${script}`);
-    // Then send the voice note
-    if (audio) {
-      try {
-        if (audio.source) {
-          await bot.telegram.sendVoice(chatId, audio);
-        } else if (audio.url) {
-          await bot.telegram.sendVoice(chatId, { url: audio.url });
+  const chatIdsArray = Array.isArray(chatIds) ? chatIds : [chatIds];
+
+  for (const chatId of chatIdsArray) {
+    // Send text first for speed
+    try {
+      await bot.telegram.sendMessage(chatId, `⚽ ${script}`);
+      // Then send the voice note
+      if (audio) {
+        try {
+          if (audio.source) {
+            await bot.telegram.sendVoice(chatId, audio);
+          } else if (audio.url) {
+            await bot.telegram.sendVoice(chatId, { url: audio.url });
+          }
+        } catch(e) {
+          console.error('Failed to send telegram voice:', e.message);
         }
-      } catch(e) {
-        console.error('Failed to send telegram voice:', e.message);
       }
-    }
-  } catch (e) { console.log("Bot broadcast failed (likely no valid token)"); }
+    } catch (e) { console.log("Bot broadcast failed (likely no valid token)"); }
+  }
 };
 
 /**
  * Flash Markets logic
  */
-export const broadcastFlashMarket = async (chatId, event, matchId) => {
+export const broadcastFlashMarket = async (chatIds, event, matchId, matchName) => {
   console.log(`[FLASH MARKET] Triggering VAR check...`);
   const script = `🚨 VAR CHECK INITIATED 🚨\nPossible Penalty. Will it be given?`;
   const message = `${script}\n\nType YES or NO to make a 5 point Flash Prediction!`;
@@ -162,27 +172,32 @@ export const broadcastFlashMarket = async (chatId, event, matchId) => {
   globalEvents.emit('chat_message', {
     text: script,
     audioUrl: audio?.webUrl || audio?.url || (audio?.source ? `data:audio/mpeg;base64,${audio.source.toString('base64')}` : null),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    matchName: matchName
   });
 
-  try {
-    await bot.telegram.sendMessage(chatId, message, Markup.inlineKeyboard([
-      Markup.button.callback('Yes (+5 / -5 pts)', 'flash_var_yes'),
-      Markup.button.callback('No (+5 / -5 pts)', 'flash_var_no')
-    ]));
-    
-    if (audio) {
-      try {
-        if (audio.source) {
-          await bot.telegram.sendVoice(chatId, audio);
-        } else if (audio.url) {
-          await bot.telegram.sendVoice(chatId, { url: audio.url });
+  const chatIdsArray = Array.isArray(chatIds) ? chatIds : [chatIds];
+
+  for (const chatId of chatIdsArray) {
+    try {
+      await bot.telegram.sendMessage(chatId, message, Markup.inlineKeyboard([
+        Markup.button.callback('Yes (+5 / -5 pts)', 'flash_var_yes'),
+        Markup.button.callback('No (+5 / -5 pts)', 'flash_var_no')
+      ]));
+      
+      if (audio) {
+        try {
+          if (audio.source) {
+            await bot.telegram.sendVoice(chatId, audio);
+          } else if (audio.url) {
+            await bot.telegram.sendVoice(chatId, { url: audio.url });
+          }
+        } catch(e) {
+          console.error('Failed to send telegram voice:', e.message);
         }
-      } catch(e) {
-        console.error('Failed to send telegram voice:', e.message);
       }
-    }
-  } catch (e) { console.error("Bot flash market failed:", e.message || e); }
+    } catch (e) { console.error("Bot flash market failed:", e.message || e); }
+  }
 };
 
 bot.action('flash_var_yes', (ctx) => {
@@ -199,7 +214,7 @@ bot.action('flash_var_no', (ctx) => {
   ctx.reply(`⚡ @${user} predicted NO.`);
 });
 
-export const resolveFlashMarket = async (chatId, event, matchId) => {
+export const resolveFlashMarket = async (chatIds, event, matchId, matchName) => {
   console.log(`[FLASH MARKET] Resolving VAR check...`);
   const penaltyGiven = event.result === 'penalty_given';
   const winningChoice = penaltyGiven ? 'yes' : 'no';
@@ -269,28 +284,41 @@ export const resolveFlashMarket = async (chatId, event, matchId) => {
   globalEvents.emit('chat_message', {
     text: resultMsg,
     audioUrl: null,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    matchName: matchName
   });
 
-  try {
-    await bot.telegram.sendMessage(chatId, resultMsg);
-  } catch (e) { console.log("Bot resolve failed (likely no valid token)"); }
+  const chatIdsArray = Array.isArray(chatIds) ? chatIds : [chatIds];
+  for (const chatId of chatIdsArray) {
+    try {
+      await bot.telegram.sendMessage(chatId, resultMsg);
+    } catch (e) { console.log("Bot resolve failed (likely no valid token)"); }
+  }
 };
 
-export const broadcastWinner = async (chatId, matchName, winners, payout) => {
-  const script = winners.length > 0
-    ? `🏁 FULL TIME! ${matchName} is over! 🏆 Congratulations to our winner${winners.length > 1 ? 's' : ''}: ${winners.join(', ')}! You won ${payout.toFixed(2)} PULSE!`
-    : `🏁 FULL TIME! ${matchName} is over! Sadly, nobody scored any points. 80% of the pool has been refunded to all players. Better luck next time!`;
+export const broadcastMatchEnd = async (chatIds, matchName, finalScore, winners = []) => {
+  let script = `🏁 FULL TIME! ${matchName} has officially ended. Final Score: ${finalScore.home} - ${finalScore.away}.`;
+
+  if (winners && winners.length > 0) {
+    const winnerTexts = winners.map(w => `@${(w.username || 'unknown').replace('@', '')} (+${w.payout.toFixed(2)} PULSE)`).join(', ');
+    script += `\n\n🏆 Congratulations to our winners: ${winnerTexts}!`;
+  } else {
+    script += `\n\nSadly, nobody scored any points on this match. Better luck next time!`;
+  }
 
   globalEvents.emit('chat_message', {
     text: script,
     audioUrl: null,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    matchName: matchName
   });
 
-  try {
-    await bot.telegram.sendMessage(chatId, `🏆 ${script}`);
-  } catch (e) { console.log("Bot winner broadcast failed"); }
+  const chatIdsArray = Array.isArray(chatIds) ? chatIds : [chatIds];
+  for (const chatId of chatIdsArray) {
+    try {
+      await bot.telegram.sendMessage(chatId, `🏁 ${script}`);
+    } catch (e) { console.log("Bot match end broadcast failed"); }
+  }
 };
 
 export const broadcastUpcomingMatches = async (chatId, matchCount) => {

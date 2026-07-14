@@ -4,16 +4,14 @@
   "away_team": "France",
   "events": [
     { "type": "kickoff", "minute": 1 },
-    { "type": "var_check", "minute": 10, "description": "Red Card Check on Argentina" },
-    { "type": "var_result", "minute": 11, "result": "no_card" },
-    { "type": "goal", "minute": 18, "scorer": "Kylian Mbappe", "score": { "home": 0, "away": 1 }, "ruined_users": [] },
-    { "type": "goal", "minute": 23, "scorer": "Lionel Messi", "score": { "home": 1, "away": 1 }, "ruined_users": [] },
-    { "type": "var_check", "minute": 44, "description": "Possible Penalty for Argentina" },
-    { "type": "var_result", "minute": 45, "result": "penalty_given" },
-    { "type": "goal", "minute": 45, "scorer": "Lionel Messi", "score": { "home": 2, "away": 1 }, "ruined_users": [] },
-    { "type": "half_time", "minute": 45 },
-    { "type": "goal", "minute": 80, "scorer": "Kylian Mbappe", "score": { "home": 2, "away": 2 }, "ruined_users": [] },
-    { "type": "goal", "minute": 89, "scorer": "Kylian Mbappe", "score": { "home": 2, "away": 3 }, "ruined_users": [] },
+    { "type": "goal", "minute": 23, "scorer": "Lionel Messi", "score": { "home": 1, "away": 0 } },
+    { "type": "goal", "minute": 36, "scorer": "Angel Di Maria", "score": { "home": 2, "away": 0 } },
+    { "type": "goal", "minute": 50, "scorer": "Lionel Messi", "score": { "home": 3, "away": 0 } },
+    { "type": "goal", "minute": 75, "scorer": "Kylian Mbappe", "score": { "home": 3, "away": 1 } },
+    { "type": "var_check", "minute": 70, "description": "Possible Penalty for France" },
+    { "type": "var_result", "minute": 80, "result": "penalty_given" },
+    { "type": "goal", "minute": 82, "scorer": "Kylian Mbappe", "score": { "home": 3, "away": 2 } },
+    { "type": "goal", "minute": 89, "scorer": "Kylian Mbappe", "score": { "home": 3, "away": 3 } },
     { "type": "match_end", "minute": 90 }
   ]
 }

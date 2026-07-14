@@ -3,8 +3,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 const LiveChat = () => {
   const [messages, setMessages] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState('All Games');
   const messagesEndRef = useRef(null);
   const isMutedRef = useRef(false);
+  const selectedMatchRef = useRef('All Games');
+
+  useEffect(() => {
+    selectedMatchRef.current = selectedMatch;
+  }, [selectedMatch]);
 
   // Keep ref in sync with state so the SSE callback always has the latest value
   useEffect(() => { 
@@ -47,7 +53,10 @@ const LiveChat = () => {
           if (window.speechSynthesis) window.speechSynthesis.cancel();
         } else {
           // Speak the message text using browser TTS
-          speakText(data.text);
+          const currentMatch = selectedMatchRef.current;
+          if (currentMatch === 'All Games' || currentMatch === data.matchName) {
+            speakText(data.text);
+          }
         }
       }
     };
@@ -57,29 +66,42 @@ const LiveChat = () => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, selectedMatch]);
+
+  const displayedMessages = messages.filter(m => selectedMatch === 'All Games' || m.matchName === selectedMatch);
 
   return (
     <div className="live-chat-panel">
       <div className="live-chat-header">
         <h3><span className="live-dot"></span> 🎙️ Pulse Commentary</h3>
-        <button className="mute-btn" onClick={() => setIsMuted(!isMuted)}>
-          {isMuted ? '🔇 Muted' : '🔊 Sound On'}
-        </button>
+        <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+          <select 
+            className="match-select"
+            value={selectedMatch} 
+            onChange={(e) => setSelectedMatch(e.target.value)}
+          >
+            <option value="All Games">All Games</option>
+            <option value="ARG-FRA">ARG vs FRA</option>
+            <option value="BRA-SPA">BRA vs SPA</option>
+          </select>
+          <button className="mute-btn" onClick={() => setIsMuted(!isMuted)}>
+            {isMuted ? '🔇 Muted' : '🔊 Sound On'}
+          </button>
+        </div>
       </div>
       
       <div className="live-chat-messages">
-        {messages.length === 0 && (
+        {displayedMessages.length === 0 && (
           <div className="empty-chat">
             <div className="pulse-loader"></div>
             Waiting for live events...
           </div>
         )}
-        {messages.map((msg, i) => (
+        {displayedMessages.map((msg, i) => (
           <div key={i} className="chat-message slide-in">
             <div className="chat-avatar">🤖</div>
             <div className="chat-content">
-              <span className="chat-time">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+              <span className="chat-time">{new Date(msg.timestamp).toLocaleTimeString()} {msg.matchName ? `• ${msg.matchName}` : ''}</span>
               <p>{msg.text}</p>
               <button className="replay-btn" onClick={() => speakText(msg.text)}>▶️ Replay Audio</button>
             </div>
@@ -144,6 +166,22 @@ const LiveChat = () => {
         .mute-btn:hover {
           background: var(--cr-dd);
           color: white;
+          border-color: var(--gd);
+        }
+        .match-select {
+          background: #1a1f1c;
+          border: 1px solid var(--tm2);
+          color: var(--tm);
+          border-radius: 20px;
+          padding: 6px 14px;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          outline: none;
+          transition: all 0.2s ease;
+        }
+        .match-select:hover {
+          background: var(--cr-dd);
           border-color: var(--gd);
         }
         .live-chat-messages {

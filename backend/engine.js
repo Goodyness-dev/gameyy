@@ -1,10 +1,7 @@
 import { supabase } from './db.js';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { getOrCreateAssociatedTokenAccount, mintTo } from '@solana/spl-token';
-import bs58 from 'bs58';
-import { broadcastWinner } from './bot.js';
-
-export const handleGoalEvent = async (event, matchId) => {
+import bs58 from 'bs58';export const handleGoalEvent = async (event, matchId) => {
   console.log(`[TxLINE EVENT] Goal! Scorer: ${event.scorer}, Minute: ${event.minute}, Score: ${event.score.home}-${event.score.away}`);
   
   await supabase.from('matches').update({ result: event.score }).eq('id', matchId);
@@ -43,27 +40,31 @@ export const handleMatchEnd = async (matchId, finalScore) => {
   // Anyone who picked wrong scorer lost.
   // For simplicity in this demo hackathon script, evaluatePicks handles both Won and Lost status based on correctValue.
   
+  // Trigger Escrow Payouts to update DB balances
+  const winners = await executePayouts(matchId);
+
+  // Recalculate leaderboards AFTER balances are updated
   await recalculateLeaderboards(matchId);
 
-  // Trigger Escrow Payouts
-  await executePayouts(matchId);
+  return winners;
 };
 
 const executePayouts = async (matchId) => {
   console.log(`\n[ESCROW] Executing automated payouts for match ${matchId}...`);
   
   const privateKeyString = process.env.TREASURY_PRIVATE_KEY;
-  if (!privateKeyString || privateKeyString.includes('your_')) {
-    console.log('[ESCROW] ❌ No valid TREASURY_PRIVATE_KEY in .env. Skipping actual on-chain payouts.');
-    return;
-  }
-
+  const canMint = privateKeyString && !privateKeyString.includes('your_');
   let treasuryKeypair;
-  try {
-    treasuryKeypair = Keypair.fromSecretKey(bs58.decode(privateKeyString));
-  } catch(e) {
-    console.error("[ESCROW] ❌ Invalid TREASURY_PRIVATE_KEY formatting.");
-    return;
+  const winnersList = [];
+
+  if (!canMint) {
+    console.log('[ESCROW] ⚠️ No valid TREASURY_PRIVATE_KEY in .env. Will skip on-chain mints, but WILL update DB balances.');
+  } else {
+    try {
+      treasuryKeypair = Keypair.fromSecretKey(bs58.decode(privateKeyString));
+    } catch(e) {
+      console.error("[ESCROW] ❌ Invalid TREASURY_PRIVATE_KEY formatting.");
+    }
   }
 
   const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
@@ -74,16 +75,15 @@ const executePayouts = async (matchId) => {
     .select('id, member_id, picks, wager_amount, members(wallet_address, balance, group_id, telegram_username)')
     .eq('match_id', matchId);
 
-  if (!predictions || predictions.length === 0) return;
+  if (!predictions || predictions.length === 0) return winnersList;
 
   const mintAddress = process.env.PULSE_TOKEN_MINT;
-  if (!mintAddress) {
-     console.log('[ESCROW] ❌ No PULSE_TOKEN_MINT found in .env');
-     return;
-  }
-  const mintPubkey = new PublicKey(mintAddress);
+  const mintPubkey = mintAddress ? new PublicKey(mintAddress) : null;
+  if (!mintPubkey) console.log('[ESCROW] ❌ No PULSE_TOKEN_MINT found in .env. Skipping mint.');
 
-  // 2. Evaluate winners and pay out
+  const memberPayouts = {};
+
+  // 2. Evaluate winners and calculate payouts
   for (const pred of predictions) {
     if (!pred.picks || !pred.wager_amount) continue;
 
@@ -100,48 +100,47 @@ const executePayouts = async (matchId) => {
       }
     }
 
-    // Only payout if all picks are resolved and the total odds sum is positive
     if (allResolved && totalOdds > 0) {
        const payoutAmount = pred.wager_amount * totalOdds;
-       console.log(`[ESCROW] Winner found! ${pred.members.wallet_address} won ${payoutAmount.toFixed(2)} PULSE`);
-
-       try {
-         const userPubkey = new PublicKey(pred.members.wallet_address);
-         const userAta = await getOrCreateAssociatedTokenAccount(
-           connection,
-           treasuryKeypair,
-           mintPubkey,
-           userPubkey
-         );
-
-         // Mint winnings to user
-         const signature = await mintTo(
-           connection,
-           treasuryKeypair,
-           mintPubkey,
-           userAta.address,
-           treasuryKeypair.publicKey,
-           Math.floor(payoutAmount * 100) // 2 decimals
-         );
-         
-         console.log(`✅ [SUCCESS] Tokens minted! Sig: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
-
-         // Update DB balance
-         const currentBalance = parseFloat(pred.members.balance || 0);
-         await supabase.from('members').update({ balance: currentBalance + payoutAmount }).eq('id', pred.member_id);
-
-         // Broadcast
-         const { data: groupData } = await supabase.from('groups').select('chat_id').eq('id', pred.members.group_id).single();
-         if (groupData?.chat_id) {
-           await broadcastWinner(groupData.chat_id, "The Match", [pred.members.telegram_username], payoutAmount);
-         }
-       } catch (err) {
-         console.error(`❌ [ERROR] Failed to mint payout to ${pred.members.wallet_address}:`, err.message);
+       
+       if (!memberPayouts[pred.member_id]) {
+         memberPayouts[pred.member_id] = {
+           payout: 0,
+           username: pred.members.telegram_username,
+           wallet_address: pred.members.wallet_address,
+           oldBalance: parseFloat(pred.members.balance || 0)
+         };
        }
+       memberPayouts[pred.member_id].payout += payoutAmount;
     } else {
        console.log(`[ESCROW] Prediction ${pred.id} lost or still pending.`);
     }
   }
+
+
+  // 3. Execute payouts and DB updates once per winning member
+  for (const memberId of Object.keys(memberPayouts)) {
+    const data = memberPayouts[memberId];
+    console.log(`[ESCROW] Winner found! ${data.wallet_address} won ${data.payout.toFixed(2)} PULSE`);
+    
+    winnersList.push({ username: data.username, payout: data.payout });
+
+    // Update DB balance always (preventing race conditions by doing it once)
+    await supabase.from('members').update({ balance: data.oldBalance + data.payout }).eq('id', memberId);
+
+    if (canMint && treasuryKeypair && mintPubkey) {
+      try {
+        const userPubkey = new PublicKey(data.wallet_address);
+        const userAta = await getOrCreateAssociatedTokenAccount(connection, treasuryKeypair, mintPubkey, userPubkey);
+        const signature = await mintTo(connection, treasuryKeypair, mintPubkey, userAta.address, treasuryKeypair.publicKey, Math.floor(data.payout * 100));
+        console.log(`✅ [SUCCESS] Tokens minted! Sig: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+      } catch (err) {
+        console.error(`❌ [ERROR] Failed to mint payout to ${data.wallet_address}:`, err.message);
+      }
+    }
+  }
+
+  return winnersList;
 };
 
 const evaluatePicks = async (matchId, market, correctValue) => {

@@ -2,8 +2,8 @@ import express from 'express';
 import { supabase } from './db.js';
 import { getMatches, getMatchById, getMatchOdds } from './txline.js';
 import { handleGoalEvent, handleMatchEnd } from './engine.js';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { getOrCreateAssociatedTokenAccount, mintTo } from '@solana/spl-token';
+import { Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
+import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, createMintToInstruction } from '@solana/spl-token';
 import bs58 from 'bs58';
 import * as googleTTS from 'google-tts-api';
 import axios from 'axios';
@@ -198,25 +198,40 @@ router.post('/wallet/airdrop', async (req, res) => {
     const userPubkey = new PublicKey(wallet_address);
     const mintPubkey = new PublicKey(mintAddress);
     
-    // Create ATA for user
-    const userAta = await getOrCreateAssociatedTokenAccount(
-      connection,
-      treasuryKeypair, // payer
-      mintPubkey,
-      userPubkey,
-      true,
-      'confirmed'
-    );
+    // Compute user ATA address
+    const userAtaAddress = await getAssociatedTokenAddress(mintPubkey, userPubkey, true);
+    const userAtaInfo = await connection.getAccountInfo(userAtaAddress);
+
+    const transaction = new Transaction();
+
+    // Create ATA if it doesn't exist
+    if (!userAtaInfo) {
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          treasuryKeypair.publicKey, // payer
+          userAtaAddress, // ata
+          userPubkey, // owner
+          mintPubkey // mint
+        )
+      );
+    }
 
     // Mint 100 tokens (with 2 decimals, so 10000)
-    console.log(`[AIRDROP] Attempting mintTo. Mint: ${mintPubkey.toBase58()}, Destination: ${userAta.address.toBase58()}, Authority: ${treasuryKeypair.publicKey.toBase58()}`);
-    const txSig = await mintTo(
+    transaction.add(
+      createMintToInstruction(
+        mintPubkey,
+        userAtaAddress,
+        treasuryKeypair.publicKey,
+        10000 // 100.00
+      )
+    );
+
+    console.log(`[AIRDROP] Attempting mintTo. Mint: ${mintPubkey.toBase58()}, Destination: ${userAtaAddress.toBase58()}, Authority: ${treasuryKeypair.publicKey.toBase58()}`);
+    const txSig = await sendAndConfirmTransaction(
       connection,
-      treasuryKeypair,
-      mintPubkey,
-      userAta.address,
-      treasuryKeypair, // Pass the signer explicitly, not just the publicKey
-      10000 // 100.00
+      transaction,
+      [treasuryKeypair],
+      { commitment: 'confirmed' }
     );
 
     console.log(`[AIRDROP] Minted 100 PULSE to ${wallet_address} - Sig: ${txSig}`);

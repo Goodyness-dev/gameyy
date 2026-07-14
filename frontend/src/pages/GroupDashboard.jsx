@@ -103,7 +103,7 @@ const GroupDashboard = () => {
           
           {/* Telegram Deep Link Button */}
           <a 
-            href={`https://t.me/${TELEGRAM_BOT_USERNAME}?startgroup=LINK_${id || 'LM79C3'}`}
+            href={`https://telegram.me/${TELEGRAM_BOT_USERNAME}?startgroup=LINK_${id || 'LM79C3'}`}
             target="_blank"
             rel="noopener noreferrer"
             style={{

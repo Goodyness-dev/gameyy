@@ -281,10 +281,8 @@ const PredictMatch = () => {
     }
 
     try {
-      // Submit sequentially
-      for (const matchId of matchesToSubmit) {
-        let txSig = 'mock-sig-' + Math.random().toString(36).substring(2, 10);
-        
+      let txSig = 'mock-sig-' + Math.random().toString(36).substring(2, 10);
+      const predictions = matchesToSubmit.map(matchId => {
         const p = picks[matchId];
         const o = oddsMap[matchId];
         
@@ -294,25 +292,27 @@ const PredictMatch = () => {
         if (p.goals) picksArray.push({ market: 'goals', selection: p.goals, odds: o[p.goals] || 0, status: 'pending', points_awarded: 0 });
         if (p.scorer) picksArray.push({ market: 'scorer', selection: p.scorer, odds: o[p.scorer] || 0, status: 'pending', points_awarded: 0 });
 
-        const splitWager = parseFloat((wagerAmount / matchesToSubmit.length).toFixed(2));
+        return {
+          match_id: matchId,
+          picks: picksArray
+        };
+      });
 
-        const res = await fetch(`${API_URL}/api/predictions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            wallet_address: activeWallet,
-            group_invite_code: id || 'LM79C3',
-            match_id: matchId,
-            picks: picksArray,
-            wager_amount: splitWager,
-            tx_signature: txSig
-          })
-        });
+      const res = await fetch(`${API_URL}/api/predictions/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wallet_address: activeWallet,
+          group_invite_code: id || 'LM79C3',
+          wager_amount: wagerAmount,
+          tx_signature: txSig,
+          predictions
+        })
+      });
 
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || 'Failed to submit prediction');
-        }
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to submit predictions');
       }
 
       setModalConfig({ 

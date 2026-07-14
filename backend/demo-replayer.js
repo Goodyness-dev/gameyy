@@ -1,5 +1,5 @@
 import { handleGoalEvent, handleMatchEnd } from './engine.js';
-import { broadcastGoal, broadcastFlashMarket, resolveFlashMarket } from './bot.js';
+import { broadcastGoal, broadcastFlashMarket, resolveFlashMarket, broadcastMatchEnd } from './bot.js';
 import { supabase } from './db.js';
 import fs from 'fs';
 import path from 'path';
@@ -65,44 +65,45 @@ export const runDemo = async () => {
   // Custom events for Brazil vs Spain
   const events2 = [
     { type: 'kickoff', minute: 1 },
-    { type: 'goal', minute: 15, scorer: 'Lamine Yamal', score: { home: 0, away: 1 }, ruined_users: [] },
-    { type: 'goal', minute: 40, scorer: 'Vinicius Jr', score: { home: 1, away: 1 }, ruined_users: [] },
+    { type: 'goal', minute: 15, scorer: 'Lamine Yamal', score: { home: 0, away: 1 } },
+    { type: 'goal', minute: 40, scorer: 'Vinicius Jr', score: { home: 1, away: 1 } },
     { type: 'half_time', minute: 45 },
-    { type: 'var_check', minute: 60, description: "Possible Penalty for Brazil" },
-    { type: 'var_result', minute: 62, result: "penalty_given" },
-    { type: 'goal', minute: 63, scorer: 'Rodrygo', score: { home: 2, away: 1 }, ruined_users: [] },
-    { type: 'goal', minute: 90, scorer: 'Alvaro Morata', score: { home: 2, away: 2 }, ruined_users: [] },
+    { type: 'var_check', minute: 50, description: "Possible Penalty for Spain" },
+    { type: 'var_result', minute: 60, result: "penalty_given" },
+    { type: 'goal', minute: 63, scorer: 'Alvaro Morata', score: { home: 1, away: 2 } },
     { type: 'match_end', minute: 90 }
   ];
 
   // Run them concurrently using Promise.all
   const simulateMatch = async (events, realMatchId, name) => {
-    let currentMinute = 0;
+    const startTime = Date.now();
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
       
-      const minuteDiff = event.minute - currentMinute;
-      if (minuteDiff > 0) {
-        await delay(minuteDiff * 500); // 0.5 seconds per match minute
-        currentMinute = event.minute;
-      } else {
-        await delay(500); // Small delay for concurrent events in the same minute
+      const targetTime = startTime + (event.minute * 500);
+      const waitTime = targetTime - Date.now();
+      
+      if (waitTime > 0) {
+        await delay(waitTime); // 0.5 seconds per match minute (90 mins = 45s)
       }
 
       console.log(`\n[${name} - MINUTE ${event.minute}] Event: ${event.type.toUpperCase()}`);
 
       if (event.type === 'goal') {
-        await handleGoalEvent(event, realMatchId);
-        for (const chatId of chatIds) await broadcastGoal(chatId, event, event.ruined_users || []);
+        handleGoalEvent(event, realMatchId).catch(console.error);
+        broadcastGoal(chatIds, event, event.ruined_users || [], name).catch(console.error);
       } else if (event.type === 'var_check') {
-        for (const chatId of chatIds) await broadcastFlashMarket(chatId, event, realMatchId);
+        broadcastFlashMarket(chatIds, event, realMatchId, name).catch(console.error);
       } else if (event.type === 'var_result') {
-        for (const chatId of chatIds) await resolveFlashMarket(chatId, event, realMatchId);
+        resolveFlashMarket(chatIds, event, realMatchId, name).catch(console.error);
       } else if (event.type === 'match_end') {
         console.log(`--- ${name} FINISHED ---`);
-        let finalScore = { home: 2, away: 2 }; // Default for arg-fra
-        if (name === 'BRA-SPA') finalScore = { home: 1, away: 1 };
-        await handleMatchEnd(realMatchId, finalScore);
+        let finalScore = { home: 3, away: 3 }; // 3-3 for arg-fra
+        if (name === 'BRA-SPA') finalScore = { home: 1, away: 2 }; // 1-2 for Spain
+        
+        handleMatchEnd(realMatchId, finalScore).then(winners => {
+          broadcastMatchEnd(chatIds, name, finalScore, winners).catch(console.error);
+        }).catch(console.error);
       }
     }
   };
