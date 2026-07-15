@@ -10,6 +10,26 @@ const GroupDashboard = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [escrows, setEscrows] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationMsg, setSimulationMsg] = useState("");
+
+  const activeWallet = connected && publicKey ? publicKey.toString() : localStorage.getItem('guestWalletPubKey');
+
+  const handleRunSimulation = async () => {
+    if (!window.confirm("Are you sure you want to run the simulation? This action cannot be undone.")) return;
+    setIsSimulating(true);
+    setSimulationMsg("Starting simulation...");
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      await fetch(`${API_URL}/api/demo/start`, { method: 'POST' });
+      setSimulationMsg("✅ Simulation running!");
+    } catch (err) {
+      console.error(err);
+      setSimulationMsg("❌ Failed to start.");
+    }
+    setIsSimulating(false);
+    setTimeout(() => setSimulationMsg(""), 5000);
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(id || 'LM79C3');
@@ -30,7 +50,7 @@ const GroupDashboard = () => {
         const group = await groupRes.json();
         
         if (group && !group.error) {
-          setGroupData({ entryFee: group.entry_fee, groupName: group.name, groupId: group.id });
+          setGroupData({ entryFee: group.entry_fee, groupName: group.name, groupId: group.id, createdBy: group.created_by });
           
           const lbRes = await fetch(`${API_URL}/api/leaderboard/${group.id}`);
           const lb = await lbRes.json();
@@ -301,6 +321,36 @@ const GroupDashboard = () => {
             )}
           </div>
           
+          {activeWallet === groupData.createdBy && (
+            <div className="admin-card" style={{ padding: '1.5rem', background: '#221010', border: '1px solid #aa3333', borderRadius: '12px', marginBottom: '1.5rem' }}>
+              <div style={{ fontSize: '18px', marginBottom: '1rem', color: '#ff6666', fontWeight: 'bold' }}>👑 Admin Controls</div>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', marginBottom: '1rem' }}>
+                As the group creator, you can manually trigger the demo simulation.
+              </p>
+              <button 
+                onClick={handleRunSimulation} 
+                disabled={isSimulating}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: isSimulating ? '#555' : '#cc2222',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  cursor: isSimulating ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {isSimulating ? 'Starting...' : 'Run Simulation'}
+              </button>
+              {simulationMsg && (
+                <div style={{ marginTop: '10px', fontSize: '14px', textAlign: 'center', color: simulationMsg.includes('❌') ? '#ff4444' : 'var(--gd)' }}>
+                  {simulationMsg}
+                </div>
+              )}
+            </div>
+          )}
+
           <LiveChat />
         </div>
       </div>

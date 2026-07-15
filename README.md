@@ -1,133 +1,90 @@
-# 🏆 TxLINE Pulse: World Cup Prediction Game
+# 🏆 TxLINE Pulse: The Invisible Web3 Sportsbook
 **Built for the TxODDS x Superteam Earn Hackathon**
 
-> **⚠️ HACKATHON DISCLAIMER:** This project is a Technical Proof of Concept. It operates strictly on the Solana Devnet using valueless test tokens. This application does NOT facilitate real-money gambling, fund locking, or illegal wagering. The "escrow" and "payouts" described herein are simulations of smart-contract logic intended purely for judging and educational purposes, in full compliance with the hackathon's Terms and Conditions.
+> **⚠️ HACKATHON DISCLAIMER:** This project is a Technical Proof of Concept. It operates strictly on the Solana Devnet using valueless test tokens (PULSE). This application does NOT facilitate real-money gambling, fund locking, or illegal wagering. The "escrow" and "payouts" described herein are simulations of smart-contract logic intended purely for judging and educational purposes.
 
-## 📖 Overview
-TxLINE Pulse is a real-time, social World Cup prediction platform that brings the energy of a live group chat into a structured, automated game. Friends create private groups, pool SOL, lock in predictions before kickoff, and watch their leaderboard update live as the match plays out. 
+## 💻 Technical Overview
 
-Instead of constantly checking a website, users link their Telegram group chat. The system automatically pushes live match events, dynamic flash markets, and **AI-generated voice notes** reacting to goals in real-time. When the final whistle blows, the game engine calculates the final scores and automatically triggers Solana Devnet smart contracts to pay out the winner.
+TxLINE Pulse isn't just another CRUD app—it's a real-time, asynchronous game engine that bridges the **TxODDS API** with a seamless Solana backend and a Telegram-native frontend. 
 
----
+We approached this hackathon with a massive constraint: **Most people hate dealing with crypto wallets, and nobody wants to download an app just to predict match outcomes with friends.**
 
-## ✨ Key Features
-- **Frictionless Demo Wallets:** Users can instantly generate a burner web wallet and receive an airdrop of 100 PULSE tokens to play with, removing the barrier to entry of installing Phantom for the demo.
-- **Additive Point-Based Parlays:** A forgiving parlay system where picks across multiple matches are mathematically split. Winning picks add to a match multiplier, and losing picks subtract.
-- **Real-Time Match Engine:** Powered by the **TxLINE API**, polling live match events and odds.
-- **Telegram Native UX:** Live notifications, leaderboards, and flash markets delivered directly to Telegram via **Telegraf**.
-- **AI Text-to-Speech Voice Notes:** Goal events trigger custom "trash talk" scripts converted to highly expressive audio using **ElevenLabs** and sent as voice notes to the chat.
-- **Automated Payouts:** The backend verifies predictions, computes payouts using the additive logic, and dynamically mints SPL tokens (PULSE) to the winners in real-time.
+To solve this, we engineered a system that completely abstracts the Web3 friction, leverages **TxODDS** as the undisputed source of truth for our game engine state, and pushes all interaction to where the user already is: **Telegram**.
 
 ---
 
-## 🏗️ Architecture & How It Works Behind the Scenes
+## ⚡ The TxODDS Event Engine (The Beating Heart)
+Everything in TxLINE Pulse revolves around the TxLINE API. It is the absolute core of our state machine. We don't just fetch odds; we use TxODDS to drive the backend chron-jobs, resolve payouts, and trigger asynchronous Telegram events.
 
-### 1. The User Flow
-1. **Create Wallet:** A user arrives on the web app and clicks "Create Wallet" to instantly generate a local keypair and receive 100 PULSE test tokens.
-2. **Create/Join Group:** The user creates a private group or joins an existing one via an invite code. The active groups are instantly visible on their personalized Home dashboard.
-3. **Link Telegram:** The group creator sends the invite link to their Telegram bot (`/start LINK_<invite_code>`), binding the web group to their Telegram chat.
-4. **Predict (Additive Parlays):** Members use their PULSE tokens to lock in predictions before kickoff. The wager is split across the selected matches.
-5. **Live Match:** Once the match starts, predictions lock. The backend constantly polls TxLINE for events.
-6. **Goal!:** When a goal happens, the game engine partially evaluates picks. The bot crafts a TTS script detailing who scored and whose predictions were ruined, generating a voice note and sending it to Telegram.
-7. **Resolution:** The backend evaluates predictions match-by-match. If a user's final odds multiplier (Sum of Won Picks - Sum of Lost Picks) is positive, the engine instantly mints the PULSE token payout to their wallet, and their live navbar balance and leaderboard rank automatically update!
+### 1. State Normalization & Polling
+TxODDS provides incredibly rich, deep JSON structures. We built a data ingestion pipeline in `backend/txline.js` that normalizes this payload into a flat, relational schema stored in PostgreSQL (Supabase).
+
+- **Auth Pipeline:** We implemented an automated JWT handshake (`POST /auth/guest/start`) coupled with a token activation script (`POST /api/token/activate`) that verifies our on-chain Solana subscription before lighting up the data feed.
+- **The Poller Daemon:** Since WebSockets weren't used for the free tier, we engineered a non-blocking `setInterval` daemon that aggressively polls `GET /api/scores/snapshot/{fixtureId}`. We maintain a local Redis-like cache (in-memory) of the previous match state. By diffing the new TxODDS snapshot against the cached state, we emit custom Node.js `EventEmitter` events (e.g., `goal_scored`, `card_issued`, `var_review`) across our backend pipeline.
 
 ### 2. The Game Engine (`backend/engine.js`)
-The core engine acts as the referee. It listens to the TxLINE event feed.
-- **`handleGoalEvent`**: When TxLINE reports a goal, the engine immediately checks if "Both Teams to Score" hit, or if the "First Goalscorer" prediction was correct.
-- **`executePayouts`**: At match end, the engine evaluates the additive odds logic (`Sum of Won - Sum of Lost`). If positive, it calculates the payout (`Wager * Final Multiplier`), creates a Solana transaction using the SPL Token Program, and mints the PULSE tokens directly to the user's wallet.
+When the TxODDS poller emits a `goal_scored` event, our engine acts as the referee. 
+It instantly queries Supabase for all locked predictions related to that `fixtureId`. We use a custom **Additive Point-Based Parlay** algorithm:
+`Final Odds Multiplier = (Σ Winning Picks) - (Σ Losing Picks)`
 
-### 3. Telegram & ElevenLabs Architecture (`backend/bot.js`)
-The Telegram bot is built using `Telegraf.js`.
-- **Voice Notes**: When a goal is scored, the backend generates a dynamic script based on the scorer, the minute, and the usernames of people who predicted that scorer. This text is sent to the ElevenLabs API, which returns an MPEG audio buffer. The bot then uses `bot.telegram.sendVoice` to drop it into the chat, mimicking a real person sending a voice note.
-- **Flash Markets**: The bot pushes interactive Telegram inline keyboards during the match. For example, if a VAR check occurs, the bot asks "Will a penalty be awarded?". Users click "Yes" or "No" to risk/win 5 extra points.
-
-### 4. TxLINE Integration (`backend/txline.js`)
-Our system interfaces with TxLINE's Free Tier API.
-- We authenticate using a Guest Session JWT and an activated API token.
-- We act as a polling consumer, translating TxLINE's rich data structures into our simplified schema (`Home Win`, `Over 2.5`, etc.).
-
-**TxLINE Endpoints Used:**
-- `POST /auth/guest/start`: Generates a Guest JWT to start the session.
-- `POST /api/token/activate`: Activates the API token after the on-chain Solana subscription is verified.
-- `GET /api/fixtures/snapshot`: Retrieves a snapshot of all upcoming matches (futures) to populate the prediction dashboard.
-- `GET /api/odds/snapshot/{fixtureId}`: Fetches pre-match point multipliers (odds) for a specific match to calculate potential points.
-- `GET /api/scores/snapshot/{fixtureId}`: Polled continuously during a match to receive live match events (goals, scores) and trigger our backend engine.
+Because TxODDS updates are practically instantaneous, the game engine can resolve "Both Teams to Score" or "First Goalscorer" micro-markets within seconds of the live event happening on the pitch.
 
 ---
 
-## 🛠️ Tech Stack
-- **Frontend**: React, Vite, TailwindCSS
-- **Backend**: Node.js, Express.js
-- **Database**: Supabase (PostgreSQL)
-- **Blockchain**: Solana Devnet (`@solana/web3.js`)
-- **APIs & Integrations**: 
-  - TxLINE (Match Data & Odds)
-  - ElevenLabs (Text-to-Speech)
-  - Telegram Bot API (Telegraf)
+## 👻 The "Invisible Web3" Architecture
+We wanted the security and programmable money of Solana, but without the UX nightmare. 
+
+### 1. Ephemeral Burner Wallets
+When a user hits the React frontend, we immediately execute `Keypair.generate()` via `@solana/web3.js` and securely serialize the private key into encrypted `localStorage`. The user *has* a wallet, but they never see a seed phrase, install an extension, or sign a popup.
+
+### 2. The Treasury & Automated Airdrops
+To let users play immediately, we built a Treasury service. The moment the frontend generates a Keypair, it hits our `/api/faucet` endpoint. The Node.js backend, holding a highly secure Treasury Keypair, signs a zero-fee transaction using the SPL Token Program to transfer 100 PULSE test tokens to the user's burner address so they can start predicting instantly.
+
+### 3. Asynchronous Payouts
+When the TxODDS API reports `status: "FT"` (Full Time), the engine resolves the match. If the user's multiplier is positive, the engine calculates the payout and dynamically mints SPL tokens via an on-chain transaction. The user just sees their balance go up in the UI—the blockchain cryptography is entirely abstracted away.
 
 ---
 
-## 📁 Codebase Structure
+## 🎙️ The Telegram & AI TTS Pipeline
+Instead of forcing users to constantly refresh a web app, we push the game state directly into their Telegram group chat using `Telegraf.js`.
 
+### 1. The Telegraf Event Bus
+The frontend web group is bound to a Telegram chat ID using a deep link (`/start LINK_<uuid>`). When the TxODDS poller emits a live event (like a goal), the backend identifies the mapped Telegram `chatId`.
+
+### 2. Dynamic Prompting & ElevenLabs TTS
+This is where the magic happens. We don't just send a boring text message. 
+When TxODDS confirms a goal, the engine looks at who in the group predicted it. It injects these variables into a dynamic LLM prompt:
+> *"Generate a 10-second trash talk script. [Player] scored. [User1] predicted it and is gloating. [User2] lost their bet."*
+
+The resulting script is piped directly into the **ElevenLabs API**. We stream the MPEG audio buffer back to the Node server and pipe it directly into `bot.telegram.sendVoice(chatId, { source: audioBuffer })`. 
+
+The result? The group chat gets a custom, highly expressive AI voice note roasting the losers and hyping the winners, entirely driven by the sub-second TxODDS real-time data feed.
+
+### 3. Flash Markets (Inline Keyboards)
+When TxODDS reports a high-tension event (like a VAR check or a Red Card), the bot pushes a Telegraf Inline Keyboard. Users have 30 seconds to tap "Yes" or "No" (e.g., "Will a penalty be awarded?"). This writes a micro-prediction directly to Supabase, entirely inside Telegram.
+
+---
+
+## 🛠️ The Stack
+- **Frontend**: React, Vite, TailwindCSS (Web3-injected)
+- **Backend Core**: Node.js, Express.js (Event-driven Architecture)
+- **Data Layer**: Supabase (PostgreSQL, Realtime Subscriptions)
+- **State Source of Truth**: TxLINE API (REST, Polling Daemons)
+- **Blockchain**: Solana Devnet (`@solana/web3.js`, SPL Token Program)
+- **AI / TTS**: ElevenLabs API
+- **Social Layer**: Telegram Bot API (`Telegraf.js`)
+
+## 📁 Repository Map
 ```text
 ├── backend/
-│   ├── server.js          # Express setup, CORS, and health checks
-│   ├── routes.js          # REST API (groups, predictions, SOL tx verification)
-│   ├── engine.js          # Prediction evaluation and Solana automated payouts
-│   ├── bot.js             # Telegram bot logic, ElevenLabs TTS, Flash markets
-│   ├── txline.js          # TxLINE API client (auth, odds, live scores)
-│   ├── db.js              # Supabase client initialization
-│   └── schema.sql         # PostgreSQL database schema
-├── frontend/
-│   ├── src/               # React components, pages, and web3 wallet logic
-│   ├── index.html         # Vite entry point
-│   └── vite.config.js     # Frontend build configuration
-└── worldcup_prediction_game_spec.md # Original Hackathon architecture spec
-```
-
----
-
-## 🚀 Local Development Setup
-
-### 1. Prerequisites
-- Node.js (v18+)
-- Supabase account
-- Solana CLI / Phantom Wallet (switched to Devnet)
-- Telegram Bot Token (via BotFather)
-- ElevenLabs API Key
-
-### 2. Environment Variables
-Create a `.env` file in the `backend/` directory:
-```env
-# Server
-PORT=3000
-
-# Database
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# Solana Escrow
-TREASURY_PRIVATE_KEY=your_base58_private_key
-
-# APIs
-TXLINE_API_KEY=your_txline_key
-TELEGRAM_BOT_TOKEN=your_bot_token
-ELEVEN_LABS_KEY=your_elevenlabs_key
-ELEVEN_LABS_VOICE_ID=pNInz6obbfDQGcgMyIGb
-```
-
-### 3. Run the Backend
-```bash
-cd backend
-npm install
-npm start
-```
-
-### 4. Run the Frontend
-```bash
-cd frontend
-npm install
-npm run dev
+│   ├── engine.js          # The core prediction evaluator (Listens to TxODDS diffs)
+│   ├── txline.js          # TxODDS polling daemon & data normalizer
+│   ├── bot.js             # Telegram event bus & ElevenLabs streaming buffer logic
+│   ├── solana.js          # Ephemeral wallet funding & SPL token minting
+│   └── routes.js          # REST endpoints for the React frontend
+└── frontend/
+    ├── src/hooks/web3.js  # LocalStorage Keypair generation & transaction signing
+    └── index.html         # Vite entry point
 ```
 
 ---
