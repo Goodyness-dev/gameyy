@@ -24,10 +24,21 @@ TxODDS provides incredibly rich, deep JSON structures. We built a data ingestion
 
 ### 2. The Game Engine (`backend/engine.js`)
 When the TxODDS poller emits a `goal_scored` event, our engine acts as the referee. 
-It instantly queries Supabase for all locked predictions related to that `fixtureId`. We use a custom **Additive Point-Based Parlay** algorithm:
-`Final Odds Multiplier = (Σ Winning Picks) - (Σ Losing Picks)`
+It instantly queries Supabase for all locked predictions related to that `fixtureId` and computes partial resolutions (e.g., "Both Teams to Score", "First Goalscorer") within seconds of the live event happening on the pitch.
 
-Because TxODDS updates are practically instantaneous, the game engine can resolve "Both Teams to Score" or "First Goalscorer" micro-markets within seconds of the live event happening on the pitch.
+### 3. The Math: Additive Point-Based Parlays
+Traditional sportsbooks use multiplicative parlays (if one leg fails, the entire bet goes to zero). This creates friction and rapid churn for casual players in a group chat setting.
+
+To fix this, we engineered an **Additive Parlay** algorithm tailored specifically for social gameplay. The wager is mathematically split across the selected match events, and the final payout multiplier is derived additively:
+
+`Final Multiplier = 1.0 + (Σ Winning Pick Odds) - (Σ Losing Pick Penalties)`
+
+By pulling the granular fractional odds directly from the `GET /api/odds/snapshot/{fixtureId}` TxODDS endpoint before kickoff, our engine stores the exact risk-to-reward ratio for each micro-market in Supabase. When the match resolves:
+- A correct "Home Win" (e.g., 1.5x) adds +0.5 to the base multiplier.
+- An incorrect "Over 2.5 Goals" subtracts a dynamic penalty based on implied probability.
+- If the final multiplier drops below 0, the wager is lost. If it remains positive, the Solana contract mints exactly `Wager * Final Multiplier`.
+
+This forgiving mathematical model keeps users engaged longer, reducing variance while deeply leveraging TxODDS's highly accurate pre-match probability data.
 
 ---
 
@@ -41,7 +52,7 @@ When a user hits the React frontend, we immediately execute `Keypair.generate()`
 To let users play immediately, we built a Treasury service. The moment the frontend generates a Keypair, it hits our `/api/faucet` endpoint. The Node.js backend, holding a highly secure Treasury Keypair, signs a zero-fee transaction using the SPL Token Program to transfer 100 PULSE test tokens to the user's burner address so they can start predicting instantly.
 
 ### 3. Asynchronous Payouts
-When the TxODDS API reports `status: "FT"` (Full Time), the engine resolves the match. If the user's multiplier is positive, the engine calculates the payout and dynamically mints SPL tokens via an on-chain transaction. The user just sees their balance go up in the UI—the blockchain cryptography is entirely abstracted away.
+When the TxODDS API reports `status: "FT"` (Full Time), the engine evaluates the Additive Parlay formula. If the user's final multiplier is positive, the engine calculates the payout and dynamically mints SPL tokens via an on-chain transaction. The user just sees their balance go up in the UI—the blockchain cryptography is entirely abstracted away.
 
 ---
 
