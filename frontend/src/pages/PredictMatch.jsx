@@ -102,18 +102,19 @@ const MatchCard = React.memo(({ match, isExpanded, onToggleExpand, pickData, odd
             <option value="" disabled>Select a player…</option>
             {isBrazil ? (
               <>
-                <option value="vinicius">V. Júnior (±{o['vinicius']?.toFixed(2)})</option>
-                <option value="rodrygo">Rodrygo (±{o['rodrygo']?.toFixed(2)})</option>
-                <option value="morata">A. Morata (±{o['morata']?.toFixed(2)})</option>
+                <option value="Vinicius Jr">V. Júnior (±{o['Vinicius Jr']?.toFixed(2)})</option>
+                <option value="Rodrygo">Rodrygo (±{o['Rodrygo']?.toFixed(2)})</option>
+                <option value="Alvaro Morata">A. Morata (±{o['Alvaro Morata']?.toFixed(2)})</option>
+                <option value="Lamine Yamal">L. Yamal (±{o['Lamine Yamal']?.toFixed(2)})</option>
               </>
             ) : (
               <>
-                <option value="messi">L. Messi (±{o['messi']?.toFixed(2)})</option>
-                <option value="mbappe">K. Mbappé (±{o['mbappe']?.toFixed(2)})</option>
-                <option value="alvarez">J. Álvarez (±{o['alvarez']?.toFixed(2)})</option>
-                <option value="giroud">O. Giroud (±{o['giroud']?.toFixed(2)})</option>
-                <option value="dimaria">A. Di María (±{o['dimaria']?.toFixed(2)})</option>
-                <option value="griezmann">A. Griezmann (±{o['griezmann']?.toFixed(2)})</option>
+                <option value="Lionel Messi">L. Messi (±{o['Lionel Messi']?.toFixed(2)})</option>
+                <option value="Kylian Mbappe">K. Mbappé (±{o['Kylian Mbappe']?.toFixed(2)})</option>
+                <option value="Julian Alvarez">J. Álvarez (±{o['Julian Alvarez']?.toFixed(2)})</option>
+                <option value="Olivier Giroud">O. Giroud (±{o['Olivier Giroud']?.toFixed(2)})</option>
+                <option value="Angel Di Maria">A. Di María (±{o['Angel Di Maria']?.toFixed(2)})</option>
+                <option value="Antoine Griezmann">A. Griezmann (±{o['Antoine Griezmann']?.toFixed(2)})</option>
               </>
             )}
           </select>
@@ -149,9 +150,9 @@ const PredictMatch = () => {
     'Home win': 2.60, 'Draw': 3.10, 'Away win': 2.80,
     'Yes': 1.85, 'No': 1.95,
     'Over 2.5': 2.10, 'Under 2.5': 1.75,
-    'messi': 5.50, 'mbappe': 5.00, 'alvarez': 7.50,
-    'giroud': 8.00, 'dimaria': 10.00, 'griezmann': 9.50,
-    'vinicius': 5.00, 'morata': 7.00, 'rodrygo': 6.50
+    'Lionel Messi': 5.50, 'Kylian Mbappe': 5.00, 'Julian Alvarez': 7.50,
+    'Olivier Giroud': 8.00, 'Angel Di Maria': 10.00, 'Antoine Griezmann': 9.50,
+    'Vinicius Jr': 5.00, 'Alvaro Morata': 7.00, 'Rodrygo': 6.50, 'Lamine Yamal': 8.50
   };
 
   useEffect(() => {
