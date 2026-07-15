@@ -32,14 +32,17 @@ Because TxODDS updates are practically instantaneous, the game engine's `handleG
 ## 🧮 The Math: Additive Point-Based Parlays
 Traditional sportsbooks use multiplicative parlays (where if one leg fails, the entire bet goes to zero). This creates massive friction and rapid churn for casual players in a group chat setting.
 
-To fix this, I engineered an **Additive Parlay** algorithm tailored specifically for social gameplay. The user's wager is mathematically split across the selected match events, and the final payout multiplier is derived additively:
+### How To Play & Wager Splitting
+To fix this, I engineered an **Additive Parlay** algorithm tailored specifically for social gameplay. When a user places a prediction across multiple matches, their **total wager is mathematically divided by the total number of games they bet on**. 
+
+The final payout multiplier is then derived additively from those individual fractional legs:
 
 `Final Multiplier = 1.0 + (Σ Winning Pick Odds) - (Σ Losing Pick Penalties)`
 
 By pulling the granular fractional odds directly from the `GET /api/odds/snapshot/{fixtureId}` TxODDS endpoint before kickoff, my engine stores the exact risk-to-reward ratio for each micro-market inside a `JSONB` array in PostgreSQL. When the `handleMatchEnd` event fires:
 - A correct "Home Win" (e.g., 1.5x) adds `+0.5` to the base multiplier.
 - An incorrect "Over 2.5 Goals" subtracts a dynamic penalty based on the implied probability.
-- If the final multiplier drops below 0, the wager is lost. If it remains positive, the Solana contract automatically mints exactly `Wager * Final Multiplier`.
+- If the final multiplier drops below 0, the wager is lost. If it remains positive, the Solana contract automatically mints exactly `(Wager / Number of Games) * Final Multiplier`.
 
 This forgiving mathematical model keeps users engaged longer, reducing variance while deeply leveraging TxODDS's highly accurate pre-match probability data.
 
